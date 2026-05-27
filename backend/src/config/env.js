@@ -11,7 +11,11 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 5000),
   mongoUri: process.env.MONGODB_URI,
-  clientUrl: process.env.CLIENT_URL,
+  clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
+  clientUrls: (process.env.CLIENT_URL || "http://localhost:5173")
+    .split(",")
+    .map((url) => url.trim().replace(/\/$/, ""))
+    .filter(Boolean),
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET || "dev-access-secret",
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || "dev-refresh-secret",
   jwtAccessExpires: process.env.JWT_ACCESS_EXPIRES || "15m",
