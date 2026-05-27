@@ -1,0 +1,23 @@
+import { Router } from "express";
+import { dashboard } from "../controllers/dashboard.controller.js";
+import { Driver } from "../models/Driver.js";
+import { Vehicle } from "../models/Vehicle.js";
+import { Booking } from "../models/Booking.js";
+import { User } from "../models/User.js";
+import { authRoutes } from "./auth.routes.js";
+import { resourceRoutes } from "./resource.routes.js";
+import { tripRoutes } from "./trip.routes.js";
+import { invoiceRoutes } from "./invoice.routes.js";
+import { reportRoutes } from "./report.routes.js";
+import { requireAuth } from "../middleware/auth.js";
+
+export const apiRoutes = Router();
+apiRoutes.use("/auth", authRoutes);
+apiRoutes.get("/dashboard", requireAuth, dashboard);
+apiRoutes.use("/vehicles", resourceRoutes(Vehicle, ["Super Admin", "Operations Admin"]));
+apiRoutes.use("/drivers", resourceRoutes(Driver, ["Super Admin", "Operations Admin"]));
+apiRoutes.use("/bookings", resourceRoutes(Booking, ["Super Admin", "Operations Admin"]));
+apiRoutes.use("/admins", resourceRoutes(User, ["Super Admin"]));
+apiRoutes.use("/trips", tripRoutes);
+apiRoutes.use("/invoices", invoiceRoutes);
+apiRoutes.use("/reports", reportRoutes);
