@@ -9,6 +9,7 @@ import { resourceRoutes } from "./resource.routes.js";
 import { tripRoutes } from "./trip.routes.js";
 import { invoiceRoutes } from "./invoice.routes.js";
 import { reportRoutes } from "./report.routes.js";
+import { emailRoutes } from "./email.routes.js";
 import { requireAuth } from "../middleware/auth.js";
 
 export const apiRoutes = Router();
@@ -21,3 +22,4 @@ apiRoutes.use("/admins", resourceRoutes(User, ["Super Admin"]));
 apiRoutes.use("/trips", tripRoutes);
 apiRoutes.use("/invoices", invoiceRoutes);
 apiRoutes.use("/reports", reportRoutes);
+apiRoutes.use("/emails", emailRoutes);

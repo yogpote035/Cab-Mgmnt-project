@@ -30,6 +30,23 @@ export const logout = asyncHandler(async (req, res) => {
   res.json({ message: "Logged out" });
 });
 
+export const updateProfile = asyncHandler(async (req, res) => {
+  req.user.name = req.body.name ?? req.user.name;
+  req.user.phone = req.body.phone ?? req.user.phone;
+  req.user.avatarUrl = req.body.avatarUrl ?? req.user.avatarUrl;
+  await req.user.save();
+  res.json({ user: sanitize(req.user) });
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select("+password");
+  if (!(await user.comparePassword(req.body.currentPassword))) throw new ApiError(400, "Current password is incorrect");
+  user.password = req.body.newPassword;
+  user.tokenVersion += 1;
+  await user.save();
+  res.json({ message: "Password changed. Please login again." });
+});
+
 function sanitize(user) {
-  return { id: user._id, name: user.name, email: user.email, role: user.role, avatarUrl: user.avatarUrl };
+  return { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone, avatarUrl: user.avatarUrl };
 }

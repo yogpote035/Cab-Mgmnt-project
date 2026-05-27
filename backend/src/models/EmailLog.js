@@ -6,7 +6,7 @@ const emailLogSchema = new mongoose.Schema({
   to: String,
   from: String,
   subject: String,
-  status: { type: String, enum: ["Parsed", "Sent", "Failed", "Duplicate"], required: true },
+  status: { type: String, enum: ["Parsed", "Sent", "Failed", "Duplicate", "Ignored"], required: true },
   error: String,
   relatedBooking: { type: mongoose.Schema.Types.ObjectId, ref: "Booking" },
   relatedInvoice: { type: mongoose.Schema.Types.ObjectId, ref: "Invoice" }

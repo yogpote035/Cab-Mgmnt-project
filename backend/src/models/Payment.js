@@ -4,7 +4,7 @@ const paymentSchema = new mongoose.Schema({
   invoice: { type: mongoose.Schema.Types.ObjectId, ref: "Invoice", required: true },
   amount: { type: Number, required: true, min: 0 },
   paymentDate: { type: Date, default: Date.now },
-  method: { type: String, enum: ["Bank Transfer", "UPI", "Cash", "Cheque", "Other"], default: "Bank Transfer" },
+  method: { type: String, enum: ["Bank Transfer", "UPI", "NEFT", "Cash", "Cheque", "Other"], default: "Bank Transfer" },
   referenceNumber: String,
   notes: String,
   recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }

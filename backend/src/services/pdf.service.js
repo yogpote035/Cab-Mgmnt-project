@@ -6,6 +6,9 @@ const outputDir = path.resolve("generated");
 
 export async function generateInvoicePdf(invoice) {
   fs.mkdirSync(outputDir, { recursive: true });
+  const paidAmount = Number(invoice.paidAmount || 0);
+  const balanceAmount = Number(invoice.balanceAmount ?? Math.max(Number(invoice.finalAmount || 0) - paidAmount, 0));
+  const paymentStatus = balanceAmount === 0 ? "Paid" : paidAmount > 0 ? "Partial" : "Pending";
   const filePath = path.join(outputDir, `${invoice.invoiceNumber}.pdf`);
   const doc = new PDFDocument({ margin: 48 });
   doc.pipe(fs.createWriteStream(filePath));
@@ -15,8 +18,10 @@ export async function generateInvoicePdf(invoice) {
   doc.text(`Subtotal: ${invoice.subtotal.toFixed(2)}`);
   doc.text(`GST (${invoice.gstPercent}%): ${invoice.gstAmount.toFixed(2)}`);
   doc.text(`Final Amount: ${invoice.finalAmount.toFixed(2)}`);
-  doc.text(`Paid: ${invoice.paidAmount.toFixed(2)}`);
-  doc.text(`Balance: ${invoice.balanceAmount.toFixed(2)}`);
+  doc.text(`Paid Amount: ${paidAmount.toFixed(2)}`);
+  doc.text(`Outstanding Balance: ${balanceAmount.toFixed(2)}`);
+  doc.text(`Payment Status: ${paymentStatus}`);
+  doc.text(`Invoice Status: ${invoice.status}`);
   doc.end();
   return filePath;
 }

@@ -65,6 +65,51 @@ export const completeTrip = asyncHandler(async (req, res) => {
   res.json(trip);
 });
 
+export const updateTripStatus = asyncHandler(async (req, res) => {
+  const trip = await Trip.findById(req.params.id).populate("driver vehicle booking");
+  if (!trip) throw new ApiError(404, "Trip not found");
+
+  const { status } = req.body;
+  if (!["Assigned", "In Trip", "Completed"].includes(status)) throw new ApiError(400, "Invalid trip status");
+
+  if (status === "Completed") {
+    const kmOut = Number(req.body.kmOut ?? trip.kmOut);
+    const kmIn = Number(req.body.kmIn);
+    const timeOut = new Date(req.body.timeOut || trip.timeOut);
+    const timeIn = new Date(req.body.timeIn || Date.now());
+    if (!req.body.timeOut && !trip.timeOut) throw new ApiError(400, "Time OUT is required to complete trip");
+    if (!req.body.timeIn) throw new ApiError(400, "Time IN is required to complete trip");
+    if (kmIn < kmOut) throw new ApiError(400, "KM IN must be greater than or equal to KM OUT");
+    if (timeIn <= timeOut) throw new ApiError(400, "Time IN must be after Time OUT");
+
+    Object.assign(trip, req.body, {
+      kmOut,
+      kmIn,
+      timeOut,
+      timeIn,
+      totalKm: kmIn - kmOut,
+      totalHours: Number(((timeIn - timeOut) / 36e5).toFixed(2)),
+      status: "Completed"
+    });
+    trip.driver.status = "Available";
+    trip.vehicle.status = "Available";
+  } else {
+    if (status === "In Trip" && (req.body.kmOut === undefined || !req.body.timeOut)) {
+      throw new ApiError(400, "KM OUT and Time OUT are required to mark trip In Trip");
+    }
+    Object.assign(trip, {
+      status,
+      kmOut: req.body.kmOut ?? trip.kmOut,
+      timeOut: req.body.timeOut || trip.timeOut
+    });
+    trip.driver.status = "In Trip";
+    trip.vehicle.status = "In Trip";
+  }
+
+  await Promise.all([trip.save(), trip.driver.save(), trip.vehicle.save()]);
+  res.json(await Trip.findById(trip._id).populate("booking driver vehicle"));
+});
+
 export const dutySlip = asyncHandler(async (req, res) => {
   const trip = await Trip.findById(req.params.id).populate("booking driver vehicle");
   if (!trip) throw new ApiError(404, "Trip not found");

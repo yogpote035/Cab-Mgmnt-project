@@ -9,6 +9,7 @@ import invoiceReducer from "./slices/invoiceSlice";
 import paymentReducer from "./slices/paymentSlice";
 import adminReducer from "./slices/adminSlice";
 import reportReducer from "./slices/reportSlice";
+import analyticsReducer from "./slices/analyticsSlice";
 import themeReducer from "./slices/themeSlice";
 
 export const store = configureStore({
@@ -23,6 +24,7 @@ export const store = configureStore({
     payments: paymentReducer,
     admins: adminReducer,
     reports: reportReducer,
+    analytics: analyticsReducer,
     theme: themeReducer
   }
 });

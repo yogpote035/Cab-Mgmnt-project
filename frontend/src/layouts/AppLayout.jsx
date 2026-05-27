@@ -6,12 +6,12 @@ import { Topbar } from "../components/layout/Topbar";
 export function AppLayout() {
   const [open, setOpen] = useState(false);
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <div className="flex min-h-screen">
+    <div className="h-screen overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <div className="flex h-screen overflow-hidden">
         <Sidebar open={open} onClose={() => setOpen(false)} />
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Topbar onMenu={() => setOpen(true)} />
-          <main className="p-4 lg:p-6"><Outlet /></main>
+          <main className="flex-1 overflow-y-auto p-4 lg:p-6"><Outlet /></main>
         </div>
       </div>
     </div>
