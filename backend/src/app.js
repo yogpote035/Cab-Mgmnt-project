@@ -29,6 +29,15 @@ const swaggerSpec = swaggerJSDoc({
   apis: ["./src/routes/*.js"]
 });
 
+app.get("/", (_req, res) => {
+  res.json({
+    name: "Cab Management ERP API",
+    status: "running",
+    health: "/health",
+    docs: "/api/docs"
+  });
+});
+app.head("/", (_req, res) => res.sendStatus(200));
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api", apiRoutes);
