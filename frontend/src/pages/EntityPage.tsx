@@ -28,7 +28,7 @@ export function EntityPage({ title, subtitle, stateKey, actions, columns, fields
   const [status, setStatus] = useState("");
   const state = useAppSelector((store) => (store as any)[stateKey]);
   useEffect(() => { dispatch(actions.fetchAll(status ? { status } : {})); }, [dispatch, actions, status]);
-  const formSchema = schema || z.object(Object.fromEntries(fields.map((field) => [field.name, field.type === "number" ? z.coerce.number().min(0) : z.string().min(field.required === false ? 0 : 1, "Required")])));
+  const formSchema = schema || z.object(Object.fromEntries(fields.map((field) => [field.name, field.type === "number" ? z.coerce.number().min(field.min ?? 0) : z.string().min(field.required === false ? 0 : 1, "Required")])));
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -56,10 +56,15 @@ export function EntityPage({ title, subtitle, stateKey, actions, columns, fields
             const canEdit = canEditRow(row);
             if (!canEdit) {
               return (
-                <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                  <Lock className="h-3 w-3" />
-                  {lockedLabel}
-                </span>
+                <div className="flex justify-end gap-2">
+                  <button className="btn-secondary p-2" onClick={() => setViewRow(row)} aria-label="View">
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                    <Lock className="h-3 w-3" />
+                    {lockedLabel}
+                  </span>
+                </div>
               );
             }
 
@@ -112,7 +117,7 @@ export function EntityPage({ title, subtitle, stateKey, actions, columns, fields
   );
 }
 
-function formatValue(value) {
+function formatValue(value: any) {
   if (value === null || value === undefined || value === "") return "-";
   if (typeof value === "object") return value.name || value.driverName || value.registrationNumber || value.bookingId || JSON.stringify(value);
   return String(value);

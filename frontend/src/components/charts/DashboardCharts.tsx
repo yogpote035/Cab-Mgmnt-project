@@ -1,7 +1,10 @@
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const colors = ["#2388d9", "#10b981", "#f59e0b", "#ef4444", "#64748b"];
-const normalize = (rows = []) => rows.map((row) => ({ name: row._id || "N/A", value: row.value }));
+type Period = "day" | "week" | "month" | "year";
+type ChartRow = { _id?: string; value?: number };
+type DashboardChartPayload = { revenue?: ChartRow[]; trips?: ChartRow[]; bookings?: ChartRow[]; invoiceStatus?: ChartRow[] };
+const normalize = (rows: ChartRow[] = []) => rows.map((row) => ({ name: row._id || "N/A", value: row.value || 0 }));
 const periodCopy = {
   day: { revenue: "Hourly billing movement", trips: "Trips by hour", bookings: "Bookings by hour" },
   week: { revenue: "Daily billing movement this week", trips: "Trips by day", bookings: "Bookings by day" },
@@ -9,7 +12,7 @@ const periodCopy = {
   year: { revenue: "Monthly billing movement this year", trips: "Trips by month", bookings: "Bookings by month" }
 };
 
-export function DashboardCharts({ charts = {}, period = "month" }: { charts?: any; period?: string }) {
+export function DashboardCharts({ charts = {}, period = "month" }: { charts?: DashboardChartPayload; period?: Period }) {
   const revenue = normalize(charts.revenue);
   const trips = normalize(charts.trips);
   const bookings = normalize(charts.bookings);

@@ -1,5 +1,5 @@
 import { Moon, Save, Sun } from "lucide-react";
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { api } from "../api/client";
 import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { toggleTheme } from "../redux/slices/themeSlice";
@@ -8,7 +8,7 @@ import { EntityPage } from "./EntityPage";
 
 export function AdminsPage() {
   return <EntityPage title="Manage Admins" subtitle="Create users, assign roles, and manage access." stateKey="admins" actions={adminActions} columns={[
-    { key: "name", header: "Name" }, { key: "email", header: "Email" }, { key: "role", header: "Role" }, { key: "isActive", header: "Active", render: (r) => r.isActive ? "Yes" : "No" }
+    { key: "name", header: "Name" }, { key: "email", header: "Email" }, { key: "role", header: "Role" }, { key: "isActive", header: "Active", render: (r: any) => r.isActive ? "Yes" : "No" }
   ]} fields={[
     { name: "name", label: "Name" }, { name: "email", label: "Email" }, { name: "password", label: "Password", type: "password" }, { name: "role", label: "Role", type: "select", options: ["Super Admin", "Operations Admin", "Billing Admin", "Viewer"] }
   ]} />;
@@ -22,13 +22,13 @@ export function ProfilePage() {
   const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "" });
   const [message, setMessage] = useState("");
 
-  async function saveProfile(event) {
+  async function saveProfile(event: FormEvent) {
     event.preventDefault();
     await api.put("/auth/profile", profile);
     setMessage("Profile updated. Refresh or login again to see sidebar changes.");
   }
 
-  async function savePassword(event) {
+  async function savePassword(event: FormEvent) {
     event.preventDefault();
     await api.put("/auth/change-password", passwords);
     setMessage("Password changed. Please login again.");

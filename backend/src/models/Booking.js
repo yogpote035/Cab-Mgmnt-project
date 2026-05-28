@@ -28,6 +28,7 @@ const bookingSchema = new mongoose.Schema({
   pickupLocation: String,
   dropLocation: String,
   specialInstructions: String,
+  senderEmail: { type: String, lowercase: true, trim: true },
   source: { type: String, enum: ["Email", "Manual"], default: "Manual" },
   status: { type: String, enum: ["New", "Pending Assignment", "Assigned", "Cancelled"], default: "New" },
   emailMessageId: { type: String, unique: true, sparse: true },

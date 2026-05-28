@@ -1,6 +1,6 @@
-import { Columns3, Download, Eye, FileBarChart, Printer, RefreshCcw, RotateCcw } from "lucide-react";
+import { Columns3, Download, FileBarChart, Printer, RefreshCcw, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { EmptyState } from "../components/common/EmptyState";
 import { StatCard } from "../components/common/StatCard";
@@ -9,7 +9,11 @@ import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { fetchReportByType, fetchReports } from "../redux/slices/reportSlice";
 import { downloadFile } from "../utils/downloadFile";
 
-const reportLabels = {
+type ReportRow = Record<string, any>;
+type ReportColumn = { key: string; header: string };
+type VisibleColumns = Record<string, boolean>;
+
+const reportLabels: Record<string, string> = {
   "daily-trips": "Daily Trip Reports",
   drivers: "Driver Wise Reports",
   vehicles: "Vehicle Wise Reports",
@@ -26,25 +30,39 @@ const reportLabels = {
 const colors = ["#2388d9", "#10b981", "#f59e0b", "#ef4444", "#64748b"];
 const tooltipStyle = { borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 12px 30px rgba(15, 23, 42, 0.12)" };
 
+const recordLabels: Record<string, string> = {
+  "daily-trips": "Total Trips",
+  drivers: "Total Drivers",
+  vehicles: "Total Vehicles",
+  bookings: "Total Bookings",
+  invoices: "Total Invoices",
+  payments: "Payments",
+  revenue: "Revenue Records",
+  "pending-payments": "Pending Invoices",
+  utilization: "Metrics",
+  custom: "Custom Records"
+};
+
 export function ReportsPage() {
   const { type = "daily-trips" } = useParams();
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { current, data, loading } = useAppSelector((state) => state.reports);
   const [filters, setFilters] = useState({ from: "", to: "", search: "", status: "" });
-  const [visibleColumns, setVisibleColumns] = useState({});
+  const [visibleColumns, setVisibleColumns] = useState<VisibleColumns>({});
   const [columnMenuOpen, setColumnMenuOpen] = useState(false);
-  const columnMenuRef = useRef(null);
+  const columnMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => { dispatch(fetchReports()); }, [dispatch]);
   useEffect(() => { dispatch(fetchReportByType({ type, params: filters })); }, [dispatch, type]);
   useEffect(() => {
-    if (current?.columns) setVisibleColumns(Object.fromEntries(current.columns.map((column) => [column.key, true])));
+    if (current?.columns) setVisibleColumns(Object.fromEntries(current.columns.map((column: ReportColumn) => [column.key, true])));
     setColumnMenuOpen(false);
   }, [current?.type]);
   useEffect(() => {
     if (!columnMenuOpen) return undefined;
-    function closeOnOutsideClick(event) {
-      if (!columnMenuRef.current?.contains(event.target)) setColumnMenuOpen(false);
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!columnMenuRef.current?.contains(event.target as Node)) setColumnMenuOpen(false);
     }
     document.addEventListener("mousedown", closeOnOutsideClick);
     return () => document.removeEventListener("mousedown", closeOnOutsideClick);
@@ -52,9 +70,9 @@ export function ReportsPage() {
 
   const rows = useMemo(() => {
     const search = filters.search.toLowerCase();
-    return (current?.rows || []).filter((row) => !search || Object.values(row).join(" ").toLowerCase().includes(search));
+    return ((current?.rows || []) as ReportRow[]).filter((row) => !search || Object.values(row).join(" ").toLowerCase().includes(search));
   }, [current?.rows, filters.search]);
-  const columns = (current?.columns || []).filter((column) => visibleColumns[column.key] !== false);
+  const columns = ((current?.columns || []) as ReportColumn[]).filter((column) => visibleColumns[column.key] !== false);
   const exportQuery = new URLSearchParams(Object.fromEntries(Object.entries(filters).filter(([, value]) => value))).toString();
   const summary = current?.summary || {};
   const trendData = current?.charts?.trend || [];
@@ -78,6 +96,11 @@ export function ReportsPage() {
           <p className="text-sm text-slate-500">Analytics, filters, exports, print support, and responsive report tables.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <select className="input w-64" value={type} onChange={(event) => navigate(`/reports/${event.target.value}`)} aria-label="Select report type">
+            {Object.entries(reportLabels).filter(([key]) => key !== "gst").map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
           <button className="btn-secondary" onClick={() => downloadFile(`/reports/${type}/export.xlsx?${exportQuery}`, `${type}.xlsx`)}><Download className="h-4 w-4" />Excel</button>
           <button className="btn-secondary" onClick={() => downloadFile(`/reports/${type}/export.pdf?${exportQuery}`, `${type}.pdf`)}><Download className="h-4 w-4" />PDF</button>
           <button className="btn-secondary" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</button>
@@ -85,10 +108,10 @@ export function ReportsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={FileBarChart} label="Records" value={summary.records ?? data?.invoiceCount ?? 0} />
+        <StatCard icon={FileBarChart} label={recordLabels[type] || "Records"} value={summary.records ?? data?.invoiceCount ?? 0} />
         <StatCard icon={FileBarChart} label="Total KM" value={summary.totalKm ?? 0} />
         <StatCard icon={FileBarChart} label="Revenue" value={`Rs ${Number(summary.totalRevenue ?? data?.revenue ?? 0).toLocaleString()}`} tone="green" />
-        <StatCard icon={FileBarChart} label="Outstanding" value={`Rs ${Number(summary.pendingAmount ?? data?.outstanding ?? 0).toLocaleString()}`} tone="amber" />
+        <StatCard icon={FileBarChart} label="Pending" value={`Rs ${Number(summary.pendingAmount ?? data?.outstanding ?? 0).toLocaleString()}`} tone="amber" />
       </div>
 
       <section className="panel p-4">
@@ -119,7 +142,7 @@ export function ReportsPage() {
           <p className="mb-4 text-xs text-slate-500">Current filtered distribution</p>
           {statusData.length ? (
             <ResponsiveContainer width="100%" height={250}>
-              <PieChart><Pie data={statusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={82} paddingAngle={3}>{statusData.map((_, index) => <Cell key={index} fill={colors[index % colors.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
+              <PieChart><Pie data={statusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={82} paddingAngle={3}>{statusData.map((_: unknown, index: number) => <Cell key={index} fill={colors[index % colors.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
             </ResponsiveContainer>
           ) : <EmptyState />}
         </section>
@@ -137,13 +160,12 @@ export function ReportsPage() {
               <div className="absolute right-0 z-20 mt-2 w-[160px] rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-800 dark:bg-slate-950">
                 <div className="mb-2 flex items-center justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
                   <span className="text-sm font-semibold text-slate-900 dark:text-white">Visible Columns</span>
-                  <button className="text-xs font-semibold text-brand-600" type="button" onClick={() => setVisibleColumns(Object.fromEntries((current?.columns || []).map((column) => [column.key, true])))}>All</button>
+                  <button className="text-xs font-semibold text-brand-600" type="button" onClick={() => setVisibleColumns(Object.fromEntries(((current?.columns || []) as ReportColumn[]).map((column) => [column.key, true])))}>All</button>
                 </div>
                 <div className="max-h-72 space-y-1 overflow-y-auto">
-                  {(current?.columns || []).map((column) => (
+                  {((current?.columns || []) as ReportColumn[]).map((column) => (
                     <label key={column.key} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                       <input type="checkbox" checked={visibleColumns[column.key] !== false} onChange={(e) => setVisibleColumns((v) => ({ ...v, [column.key]: e.target.checked }))} />
-                      <Eye className="h-3.5 w-3.5 text-slate-400" />
                       <span className="text-slate-700 dark:text-slate-200">{column.header}</span>
                     </label>
                   ))}
@@ -152,7 +174,7 @@ export function ReportsPage() {
             )}
           </div>
         </div>
-        <DataTable loading={loading} rows={rows.map((row, index) => ({ _id: row._id || `${type}-${index}`, ...row }))} columns={columns} />
+        <DataTable loading={loading} rows={rows.map((row: ReportRow, index: number) => ({ _id: row._id || `${type}-${index}`, ...row }))} columns={columns} />
       </section>
     </div>
   );

@@ -5,7 +5,7 @@ const tripSchema = new mongoose.Schema({
   booking: { type: mongoose.Schema.Types.ObjectId, ref: "Booking", required: true },
   driver: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", required: true },
   vehicle: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle", required: true },
-  status: { type: String, enum: ["Assigned", "In Trip", "Completed"], default: "Assigned" },
+  status: { type: String, enum: ["Assigned", "In Trip", "Completed", "Cancelled"], default: "Assigned" },
   kmOut: Number,
   kmIn: Number,
   timeOut: Date,

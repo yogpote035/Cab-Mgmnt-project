@@ -60,7 +60,7 @@ export function InvoicesPage() {
       <Modal open={Boolean(sendTarget)} title={`Send Invoice ${sendTarget?.invoiceNumber || ""}`} onClose={() => setSendTarget(null)}>
         <EntityForm
           fields={[{ name: "clientEmail", label: "Client Email", type: "email", full: true }]}
-          defaults={{ clientEmail: sendTarget?.clientEmail || "" }}
+          defaults={{ clientEmail: sendTarget?.clientEmail || sendTarget?.booking?.senderEmail || "" }}
           schema={z.object({ clientEmail: z.string().email("Valid client email is required") })}
           submitLabel="Send Invoice"
           onSubmit={async (values) => {
@@ -102,7 +102,10 @@ export function InvoicesPage() {
   );
 }
 
-function InvoiceStatusBadge({ status }) {
+type InvoiceLike = Record<string, any>;
+type InvoiceStatus = "Draft" | "Sent" | "Paid" | "Partial" | "Overdue";
+
+function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
   const styles = {
     Draft: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
     Sent: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200",
@@ -113,7 +116,7 @@ function InvoiceStatusBadge({ status }) {
   return <span className={`rounded-md px-2 py-1 text-xs font-semibold ${styles[status] || styles.Draft}`}>{status}</span>;
 }
 
-function PaymentStatusBadge({ invoice }) {
+function PaymentStatusBadge({ invoice }: { invoice: InvoiceLike }) {
   const status = Number(invoice.balanceAmount || 0) === 0 ? "Paid" : Number(invoice.paidAmount || 0) > 0 ? "Partial" : invoice.status === "Sent" ? "Waiting" : "Pending";
   const styles = {
     Paid: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200",
@@ -124,7 +127,7 @@ function PaymentStatusBadge({ invoice }) {
   return <span className={`rounded-md px-2 py-1 text-xs font-semibold ${styles[status]}`}>{status}</span>;
 }
 
-function InvoicePreview({ invoice }) {
+function InvoicePreview({ invoice }: { invoice: InvoiceLike }) {
   const rows = [
     ["Invoice Number", invoice.invoiceNumber],
     ["Client", invoice.clientName || invoice.booking?.businessUnit || "-"],

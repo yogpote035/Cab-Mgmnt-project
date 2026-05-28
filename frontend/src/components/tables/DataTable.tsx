@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { ArrowUpDown } from "lucide-react";
 import { EmptyState } from "../common/EmptyState";
 import { LoadingSkeleton } from "../common/LoadingSkeleton";
 
@@ -21,7 +20,7 @@ export function DataTable({ columns, rows = [], loading, actions }: {
             <tr>
               {columns.map((column) => (
                 <th key={column.key} className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">
-                  <span className="inline-flex items-center gap-1">{column.header}<ArrowUpDown className="h-3 w-3" /></span>
+                  {column.header}
                 </th>
               ))}
               {actions && <th className="px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">Actions</th>}

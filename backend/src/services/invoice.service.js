@@ -33,7 +33,7 @@ export async function generateInvoiceForTrip(tripId, { regenerate = false } = {}
     trip: trip._id,
     booking: trip.booking._id,
     clientName: trip.booking.businessUnit || trip.booking.bookedBy,
-    clientEmail: "",
+    clientEmail: trip.booking.senderEmail || "",
     subtotal,
     gstPercent: env.gstPercent,
     gstAmount,

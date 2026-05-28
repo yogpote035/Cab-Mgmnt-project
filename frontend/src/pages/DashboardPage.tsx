@@ -6,11 +6,12 @@ import { StatCard } from "../components/common/StatCard";
 import { DataTable } from "../components/tables/DataTable";
 import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { fetchDashboard } from "../redux/slices/dashboardSlice";
+type Period = "day" | "week" | "month" | "year";
 
 export function DashboardPage() {
   const dispatch = useAppDispatch();
   const { data, loading } = useAppSelector((state) => state.dashboard);
-  const [period, setPeriod] = useState("month");
+  const [period, setPeriod] = useState<Period>("month");
   useEffect(() => { dispatch(fetchDashboard({ period })); }, [dispatch, period]);
   if (loading && !data) return <LoadingSkeleton rows={8} />;
   const cards = data?.cards || {};
@@ -22,7 +23,7 @@ export function DashboardPage() {
           <h1 className="text-2xl font-bold text-slate-950 dark:text-white">Dashboard</h1>
           <p className="text-sm text-slate-500">Cab operations, billing, availability, and recent activity for this {periodLabel.toLowerCase()}.</p>
         </div>
-        <select className="input w-56" value={period} onChange={(event) => setPeriod(event.target.value)} aria-label="Dashboard time filter">
+        <select className="input w-56" value={period} onChange={(event) => setPeriod(event.target.value as Period)} aria-label="Dashboard time filter">
           {periodOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
@@ -53,7 +54,7 @@ export function DashboardPage() {
   );
 }
 
-const periodOptions = [
+const periodOptions: { label: string; value: Period }[] = [
   { label: "Day", value: "day" },
   { label: "Week", value: "week" },
   { label: "Month", value: "month" },

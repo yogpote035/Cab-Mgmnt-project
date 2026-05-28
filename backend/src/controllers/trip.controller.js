@@ -73,7 +73,24 @@ export const updateTripStatus = asyncHandler(async (req, res) => {
   if (!trip) throw new ApiError(404, "Trip not found");
 
   const { status } = req.body;
-  if (!["Assigned", "In Trip", "Completed"].includes(status)) throw new ApiError(400, "Invalid trip status");
+  if (!["Assigned", "In Trip", "Completed", "Cancelled"].includes(status)) throw new ApiError(400, "Invalid trip status");
+
+  if (status === "Cancelled") {
+    const invoice = await Invoice.findOne({ trip: trip._id }).select("_id invoiceNumber");
+    if (invoice) throw new ApiError(409, `Cannot cancel trip after invoice ${invoice.invoiceNumber} is generated`);
+
+    trip.status = "Cancelled";
+    trip.driver.status = "Available";
+    trip.vehicle.status = "Available";
+    trip.booking.status = "Cancelled";
+    trip.booking.timeline.push({
+      title: "Trip cancelled",
+      note: req.body.notes || `Trip ${trip.tripNumber} cancelled in emergency`,
+      actor: req.user._id
+    });
+    await Promise.all([trip.save(), trip.driver.save(), trip.vehicle.save(), trip.booking.save()]);
+    return res.json(await Trip.findById(trip._id).populate("booking driver vehicle"));
+  }
 
   if (status === "Completed") {
     const kmOut = Number(req.body.kmOut ?? trip.kmOut);
@@ -122,6 +139,27 @@ export const dutySlip = asyncHandler(async (req, res) => {
   const pdfPath = await generateDutySlipPdf(trip);
   const slip = await DutySlip.create({ slipNumber: `DS-${String(count + 1).padStart(6, "0")}`, trip: trip._id, pdfPath, generatedBy: req.user._id });
   res.json(slip);
+});
+
+export const cancelTrip = asyncHandler(async (req, res) => {
+  const trip = await Trip.findById(req.params.id).populate("booking driver vehicle");
+  if (!trip) throw new ApiError(404, "Trip not found");
+
+  const invoice = await Invoice.findOne({ trip: trip._id }).select("_id invoiceNumber");
+  if (invoice) throw new ApiError(409, `Cannot cancel trip after invoice ${invoice.invoiceNumber} is generated`);
+
+  trip.status = "Cancelled";
+  trip.booking.status = "Cancelled";
+  trip.booking.timeline.push({
+    title: "Booking cancelled",
+    note: `Trip ${trip.tripNumber} cancelled`,
+    actor: req.user._id
+  });
+  trip.driver.status = "Available";
+  trip.vehicle.status = "Available";
+
+  await Promise.all([trip.save(), trip.booking.save(), trip.driver.save(), trip.vehicle.save()]);
+  res.json(await Trip.findById(trip._id).populate("booking driver vehicle"));
 });
 
 function hasNumber(value) {

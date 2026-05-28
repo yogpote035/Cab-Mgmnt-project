@@ -17,6 +17,7 @@ export function TripsPage() {
   const [completeOpen, setCompleteOpen] = useState(false);
   const [activeTrip, setActiveTrip] = useState<any>(null);
   const [viewTrip, setViewTrip] = useState<any>(null);
+  const [cancelValues, setCancelValues] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const trips = useAppSelector((s) => s.trips);
   const bookings = useAppSelector((s) => s.bookings.items);
@@ -68,6 +69,7 @@ export function TripsPage() {
             <option value="Assigned">Assigned</option>
             <option value="In Trip">In Trip</option>
             <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
           </select>
           <button className="btn-primary" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />Assign Trip</button>
         </div>
@@ -87,7 +89,7 @@ export function TripsPage() {
           actions={(row) => (
             <div className="flex justify-end gap-2">
               <button className="btn-secondary p-2" title="View trip" onClick={() => setViewTrip(row)}><Eye className="h-4 w-4" /></button>
-              <button className="btn-secondary" title="Edit trip status / billing data" onClick={() => { setActiveTrip(row); setCompleteOpen(true); }}><Pencil className="h-4 w-4" />Edit</button>
+              <button className="btn-secondary" title="Edit trip status / billing data" disabled={row.status === "Cancelled"} onClick={() => { setActiveTrip(row); setCompleteOpen(true); }}><Pencil className="h-4 w-4" />Edit</button>
               <button className="btn-secondary p-2" title="Generate invoice" disabled={row.status !== "Completed"} onClick={async () => { await dispatch(generateInvoice(row._id)); }}><FileText className="h-4 w-4" /></button>
             </div>
           )}
@@ -106,7 +108,7 @@ export function TripsPage() {
       <Modal open={completeOpen} title="Edit Trip Status / Billing Data" onClose={() => { setCompleteOpen(false); setActiveTrip(null); }}>
         <EntityForm
           fields={[
-            { name: "status", label: "Trip Status", type: "select", options: ["Assigned", "In Trip", "Completed"], full: true },
+            { name: "status", label: "Trip Status", type: "select", options: ["Assigned", "In Trip", "Completed", "Cancelled"], full: true },
             { name: "kmOut", label: "KM OUT", type: "number" },
             { name: "kmIn", label: "KM IN", type: "number" },
             { name: "timeOut", label: "Time OUT", type: "datetime-local" },
@@ -120,12 +122,38 @@ export function TripsPage() {
           schema={tripStatusSchema}
           submitLabel="Save"
           onSubmit={async (values) => {
+            if (values.status === "Cancelled") {
+              setCancelValues(values);
+              return;
+            }
             await dispatch(updateTripStatus({ id: activeTrip._id, payload: values }));
             await dispatch(tripActions.fetchAll(undefined));
             setCompleteOpen(false);
             setActiveTrip(null);
           }}
         />
+      </Modal>
+      <Modal open={Boolean(cancelValues)} title="Confirm Trip Cancellation" onClose={() => setCancelValues(null)}>
+        <div className="space-y-4">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+            Are you sure you want to cancel this trip? This will mark the trip and booking as cancelled and release the assigned driver and vehicle.
+          </div>
+          <div className="flex justify-end gap-2">
+            <button className="btn-secondary" onClick={() => setCancelValues(null)}>No</button>
+            <button
+              className="btn-primary bg-red-600 hover:bg-red-700"
+              onClick={async () => {
+                await dispatch(updateTripStatus({ id: activeTrip._id, payload: cancelValues }));
+                await dispatch(tripActions.fetchAll(undefined));
+                setCancelValues(null);
+                setCompleteOpen(false);
+                setActiveTrip(null);
+              }}
+            >
+              Yes, Cancel Trip
+            </button>
+          </div>
+        </div>
       </Modal>
       <Modal open={Boolean(viewTrip)} title={`View Trip ${viewTrip?.tripNumber || ""}`} onClose={() => setViewTrip(null)}>
         {viewTrip && <TripDetails trip={viewTrip} />}
@@ -134,7 +162,7 @@ export function TripsPage() {
   );
 }
 
-function TripDetails({ trip }) {
+function TripDetails({ trip }: { trip: any }) {
   const rows = [
     ["Trip", trip.tripNumber],
     ["Status", trip.status],
@@ -151,7 +179,7 @@ function TripDetails({ trip }) {
   return <div className="grid gap-3 sm:grid-cols-2">{rows.map(([label, value]) => <div key={label} className="rounded-md border border-slate-200 p-3 dark:border-slate-800"><p className="text-xs font-semibold uppercase text-slate-400">{label}</p><p className="mt-1 text-sm text-slate-900 dark:text-white">{value ?? "-"}</p></div>)}</div>;
 }
 
-function tripDefaults(trip) {
+function tripDefaults(trip: any) {
   return {
     status: trip?.status || "Assigned",
     kmOut: trip?.kmOut ?? "",
@@ -165,18 +193,18 @@ function tripDefaults(trip) {
   };
 }
 
-function toDatetimeLocal(value) {
+function toDatetimeLocal(value: string | Date) {
   const date = new Date(value);
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
-const optionalNumber = z.preprocess((value) => {
+const optionalNumber = z.preprocess((value: unknown) => {
   if (value === "" || value === null || Number.isNaN(value)) return undefined;
   return value;
 }, z.coerce.number().min(0).optional());
 
 const tripStatusSchema = z.object({
-  status: z.enum(["Assigned", "In Trip", "Completed"]),
+  status: z.enum(["Assigned", "In Trip", "Completed", "Cancelled"]),
   kmOut: optionalNumber,
   kmIn: optionalNumber,
   timeOut: z.string().optional(),
@@ -203,9 +231,11 @@ const tripStatusSchema = z.object({
   }
 });
 
-function TripStatusBadge({ status }) {
+function TripStatusBadge({ status }: { status: string }) {
   const className = status === "Completed"
     ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
+    : status === "Cancelled"
+      ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200"
     : status === "In Trip"
       ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200"
       : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";

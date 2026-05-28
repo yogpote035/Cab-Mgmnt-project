@@ -1,12 +1,13 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { api } from "../../api/client";
+import { apiErrorMessage } from "../../api/errors";
 
 export const fetchDashboard = createAsyncThunk<any, any>("dashboard/fetch", async (params = {}, { rejectWithValue }) => {
   try {
     const { data } = await api.get("/dashboard", { params });
     return data;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || error.message);
+    return rejectWithValue(apiErrorMessage(error));
   }
 });
 

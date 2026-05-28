@@ -1,6 +1,15 @@
 import { motion } from "framer-motion";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
-export function StatCard({ icon: Icon, label, value, tone = "brand" }) {
+type StatCardProps = {
+  icon: LucideIcon;
+  label: string;
+  value?: ReactNode;
+  tone?: "brand" | "green" | "amber";
+};
+
+export function StatCard({ icon: Icon, label, value, tone = "brand" }: StatCardProps) {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="panel p-4">
       <div className="flex items-center justify-between">

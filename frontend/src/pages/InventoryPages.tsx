@@ -4,9 +4,9 @@ import { EntityPage } from "./EntityPage";
 
 export function CarsPage() {
   return <EntityPage title="Cars" subtitle="Vehicle inventory, rates, compliance, and availability." stateKey="vehicles" actions={vehicleActions} columns={[
-    { key: "registrationNumber", header: "Registration" }, { key: "vehicleModel", header: "Model" }, { key: "cabCategory", header: "Category" }, { key: "ratePerKm", header: "Rate/KM" }, { key: "status", header: "Status" }
+    { key: "registrationNumber", header: "Registration" }, { key: "vehicleModel", header: "Model" }, { key: "cabCategory", header: "Category" }, { key: "seatingCapacity", header: "Seats" }, { key: "ratePerKm", header: "Rate/KM" }, { key: "status", header: "Status" }
   ]} fields={[
-    { name: "registrationNumber", label: "Registration Number" }, { name: "vehicleType", label: "Vehicle Type" }, { name: "vehicleModel", label: "Vehicle Model" }, { name: "cabCategory", label: "Cab Category" }, { name: "ratePerKm", label: "Rate Per KM", type: "number" }, { name: "insurancePolicyNumber", label: "Insurance Policy Number", required: false }, { name: "status", label: "Status", type: "select", options: ["Available", "In Trip", "Maintenance"] }
+    { name: "registrationNumber", label: "Registration Number" }, { name: "vehicleType", label: "Vehicle Type" }, { name: "vehicleModel", label: "Vehicle Model" }, { name: "cabCategory", label: "Cab Category" }, { name: "seatingCapacity", label: "Seating Capacity", type: "number", min: 1 }, { name: "ratePerKm", label: "Rate Per KM", type: "number" }, { name: "insurancePolicyNumber", label: "Insurance Policy Number", required: false }, { name: "status", label: "Status", type: "select", options: ["Available", "In Trip", "Maintenance"] }
   ]} statusOptions={["Available", "In Trip", "Maintenance"]} />;
 }
 

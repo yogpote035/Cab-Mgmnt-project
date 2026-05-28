@@ -28,18 +28,7 @@ const sections = [
   },
   {
     label: "Reports",
-    items: [
-      { label: "Daily Trip Reports", path: "/reports/daily-trips", icon: BarChart3 },
-      { label: "Driver Wise Reports", path: "/reports/drivers", icon: BarChart3 },
-      { label: "Vehicle Wise Reports", path: "/reports/vehicles", icon: BarChart3 },
-      { label: "Booking Reports", path: "/reports/bookings", icon: BarChart3 },
-      { label: "Invoice Reports", path: "/reports/invoices", icon: BarChart3 },
-      { label: "Payment Reports", path: "/reports/payments", icon: BarChart3 },
-      { label: "Revenue Reports", path: "/reports/revenue", icon: BarChart3 },
-      { label: "Pending Payment Reports", path: "/reports/pending-payments", icon: BarChart3 },
-      { label: "Utilization Reports", path: "/reports/utilization", icon: BarChart3 },
-      { label: "Custom Reports", path: "/reports/custom", icon: BarChart3 }
-    ]
+    items: [{ label: "Reports", path: "/reports", icon: BarChart3 }]
   },
   {
     label: "Admin",
@@ -50,14 +39,12 @@ const sections = [
   }
 ];
 
-export function Sidebar({ open, onClose }) {
+export function Sidebar({ open, onClose }: { open: boolean; onClose?: () => void }) {
   const dispatch = useAppDispatch();
-  const user = useAppSelector((state) => state.auth.user);
-
   return (
-    <aside className={`${open ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-200 bg-white transition md:static md:translate-x-0 dark:border-slate-800 dark:bg-slate-950`}>
-      <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-5 dark:border-slate-800">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-white">
+    <aside className={`${open ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-200 bg-white/95 shadow-xl backdrop-blur transition md:static md:translate-x-0 dark:border-slate-800 dark:bg-slate-950/95`}>
+      <div className="flex h-16 items-center gap-3 border-b border-slate-200/80 px-5 dark:border-slate-800">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-cyan-500 text-white shadow-lg shadow-brand-500/20">
           <Car className="h-5 w-5" />
         </div>
         <div>
@@ -65,7 +52,7 @@ export function Sidebar({ open, onClose }) {
           <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Management & Billing</div>
         </div>
       </div>
-      <nav className="flex-1 space-y-5 overflow-y-auto p-3">
+      <nav className="scrollbar-hidden flex-1 space-y-5 overflow-y-auto p-3">
         {sections.map((section) => (
           <div key={section.label}>
             {section.label !== "Main" && (
@@ -79,7 +66,7 @@ export function Sidebar({ open, onClose }) {
                   key={path}
                   to={path}
                   onClick={onClose}
-                  className={({ isActive }) => `group flex items-center justify-between rounded-md px-3 py-2.5 text-sm font-medium transition ${isActive ? "bg-brand-50 text-brand-700 ring-1 ring-brand-100 dark:bg-slate-100 dark:text-slate-950 dark:ring-2 dark:ring-brand-400" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"}`}
+                  className={({ isActive }) => `group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition ${isActive ? "bg-gradient-to-r from-brand-600 to-cyan-500 text-white shadow-md shadow-brand-500/20 dark:from-brand-500 dark:to-cyan-400 dark:text-slate-950" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"}`}
                 >
                   <span className="flex items-center gap-3">
                     <Icon className="h-4 w-4" />

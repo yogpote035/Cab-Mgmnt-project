@@ -5,9 +5,10 @@ export function GlobalApiLoader() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    let timeout;
-    function onLoading(event) {
-      if (event.detail) {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    function onLoading(event: Event) {
+      const detail = (event as CustomEvent<boolean>).detail;
+      if (detail) {
         clearTimeout(timeout);
         setLoading(true);
       } else {

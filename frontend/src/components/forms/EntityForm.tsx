@@ -11,6 +11,7 @@ type Field = {
   full?: boolean;
   required?: boolean;
   step?: string;
+  disabled?: boolean;
 };
 
 export function EntityForm({ schema, fields, defaults = {}, onSubmit, submitLabel = "Save" }: {
@@ -29,7 +30,7 @@ export function EntityForm({ schema, fields, defaults = {}, onSubmit, submitLabe
           {field.type === "select" ? (
             <select className="input" {...register(field.name as any)}>
               <option value="">{field.placeholder || `Select ${field.label}`}</option>
-              {field.options.map((option) => {
+              {(field.options || []).map((option) => {
                 const value = typeof option === "object" ? option.value : option;
                 const label = typeof option === "object" ? option.label : option;
                 return <option key={value} value={value}>{label}</option>;
@@ -40,6 +41,8 @@ export function EntityForm({ schema, fields, defaults = {}, onSubmit, submitLabe
               className="input"
               type={field.type || "text"}
               placeholder={field.placeholder}
+              disabled={field.disabled}
+              readOnly={field.disabled}
               step={field.type === "number" ? field.step || "any" : undefined}
               inputMode={field.type === "number" ? "decimal" : undefined}
               {...register(field.name as any, { valueAsNumber: field.type === "number" })}

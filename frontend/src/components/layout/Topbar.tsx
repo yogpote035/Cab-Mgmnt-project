@@ -1,18 +1,21 @@
 import { Bell, Menu, Moon, Search, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { MouseEvent, KeyboardEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { toggleTheme } from "../../redux/slices/themeSlice";
 
-export function Topbar({ onMenu }) {
+type BookingNotification = { _id: string; passengerName?: string; cabRequestNumber?: string; bookingId?: string };
+
+export function Topbar({ onMenu }: { onMenu: () => void }) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { mode } = useAppSelector((state) => state.theme);
   const user = useAppSelector((state) => state.auth.user);
   const [openNotifications, setOpenNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [seenIds, setSeenIds] = useState<any[]>(() => JSON.parse(localStorage.getItem("seenBookingNotifications") || "[]"));
+  const [notifications, setNotifications] = useState<BookingNotification[]>([]);
+  const [seenIds, setSeenIds] = useState<string[]>(() => JSON.parse(localStorage.getItem("seenBookingNotifications") || "[]"));
+  const [clearedIds, setClearedIds] = useState<string[]>(() => JSON.parse(localStorage.getItem("clearedBookingNotifications") || "[]"));
   const unreadNotifications = notifications.filter((item) => !seenIds.includes(item._id));
 
   useEffect(() => {
@@ -21,7 +24,7 @@ export function Topbar({ onMenu }) {
     async function fetchNotifications() {
       try {
         const { data } = await api.get("/bookings", { params: { status: "New", limit: 5 } });
-        if (mounted) setNotifications(data.items || []);
+        if (mounted) setNotifications((data.items || []).filter((item: BookingNotification) => !clearedIds.includes(item._id)));
       } catch {
         if (mounted) setNotifications([]);
       }
@@ -33,9 +36,9 @@ export function Topbar({ onMenu }) {
       mounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [clearedIds]);
 
-  function openInquiry(notification) {
+  function openInquiry(notification: BookingNotification) {
     const nextSeen = Array.from(new Set([...seenIds, notification._id]));
     setSeenIds(nextSeen);
     localStorage.setItem("seenBookingNotifications", JSON.stringify(nextSeen));
@@ -43,17 +46,25 @@ export function Topbar({ onMenu }) {
     navigate("/bookings/inquiries");
   }
 
-  function clearNotification(event, notificationId) {
+  function clearNotification(event: MouseEvent | KeyboardEvent, notificationId: string) {
     event.stopPropagation();
     const nextSeen = Array.from(new Set([...seenIds, notificationId]));
+    const nextCleared = Array.from(new Set([...clearedIds, notificationId]));
     setSeenIds(nextSeen);
+    setClearedIds(nextCleared);
+    setNotifications((items) => items.filter((notification) => notification._id !== notificationId));
     localStorage.setItem("seenBookingNotifications", JSON.stringify(nextSeen));
+    localStorage.setItem("clearedBookingNotifications", JSON.stringify(nextCleared));
   }
 
   function clearAllNotifications() {
     const nextSeen = notifications.map((notification) => notification._id);
+    const nextCleared = Array.from(new Set([...clearedIds, ...nextSeen]));
     setSeenIds(nextSeen);
+    setClearedIds(nextCleared);
+    setNotifications([]);
     localStorage.setItem("seenBookingNotifications", JSON.stringify(nextSeen));
+    localStorage.setItem("clearedBookingNotifications", JSON.stringify(nextCleared));
   }
 
   return (
@@ -131,7 +142,7 @@ export function Topbar({ onMenu }) {
         </button>
       </div>
 
-      <div className="hidden items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:flex dark:border-slate-800 dark:bg-slate-900">
+      <div className="hidden items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 sm:flex dark:border-slate-800 dark:bg-slate-900">
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-600 text-sm font-semibold text-white">
           {(user?.name || "A").slice(0, 1)}
         </div>

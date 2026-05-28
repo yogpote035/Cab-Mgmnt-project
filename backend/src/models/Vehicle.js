@@ -5,6 +5,7 @@ const vehicleSchema = new mongoose.Schema({
   vehicleType: { type: String, required: true },
   vehicleModel: { type: String, required: true },
   cabCategory: { type: String, required: true },
+  seatingCapacity: { type: Number, min: 1, default: 4 },
   ratePerKm: { type: Number, required: true, min: 0 },
   insurancePolicyNumber: String,
   insuranceExpiry: Date,

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { assignTrip, completeTrip, dutySlip, listTrips, startTrip, updateTripStatus } from "../controllers/trip.controller.js";
+import { assignTrip, cancelTrip, completeTrip, dutySlip, listTrips, startTrip, updateTripStatus } from "../controllers/trip.controller.js";
 import { allowRoles, requireAuth } from "../middleware/auth.js";
 
 export const tripRoutes = Router();
@@ -10,3 +10,4 @@ tripRoutes.patch("/:id/start", allowRoles("Super Admin", "Operations Admin"), st
 tripRoutes.patch("/:id/complete", allowRoles("Super Admin", "Operations Admin"), completeTrip);
 tripRoutes.patch("/:id/status", allowRoles("Super Admin", "Operations Admin"), updateTripStatus);
 tripRoutes.post("/:id/duty-slip", allowRoles("Super Admin", "Operations Admin"), dutySlip);
+tripRoutes.delete("/:id", allowRoles("Super Admin", "Operations Admin"), cancelTrip);

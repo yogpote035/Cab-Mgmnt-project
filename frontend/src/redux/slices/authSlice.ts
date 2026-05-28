@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { api } from "../../api/client";
+import { apiErrorMessage } from "../../api/errors";
 
 export const login = createAsyncThunk<any, any>("auth/login", async (payload, { rejectWithValue }) => {
   try {
@@ -8,7 +9,7 @@ export const login = createAsyncThunk<any, any>("auth/login", async (payload, { 
     localStorage.setItem("refreshToken", data.refreshToken);
     return data.user;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || error.message);
+    return rejectWithValue(apiErrorMessage(error));
   }
 });
 
@@ -17,7 +18,7 @@ export const loadMe = createAsyncThunk<any, void>("auth/loadMe", async (_, { rej
     const { data } = await api.get("/auth/me");
     return data.user;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || error.message);
+    return rejectWithValue(apiErrorMessage(error));
   }
 });
 

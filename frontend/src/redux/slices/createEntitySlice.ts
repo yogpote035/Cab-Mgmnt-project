@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { api } from "../../api/client";
+import { apiErrorMessage } from "../../api/errors";
 
 export function createEntitySlice(name: string, endpoint: string) {
   const fetchAll = createAsyncThunk<any, any>(`${name}/fetchAll`, async (params = {}, { rejectWithValue }) => {
@@ -7,7 +8,7 @@ export function createEntitySlice(name: string, endpoint: string) {
       const { data } = await api.get(endpoint, { params });
       return data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || error.message);
+      return rejectWithValue(apiErrorMessage(error));
     }
   });
 
@@ -16,7 +17,7 @@ export function createEntitySlice(name: string, endpoint: string) {
       const { data } = await api.post(endpoint, payload);
       return data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || error.message);
+      return rejectWithValue(apiErrorMessage(error));
     }
   });
 
@@ -25,7 +26,7 @@ export function createEntitySlice(name: string, endpoint: string) {
       const { data } = await api.put(`${endpoint}/${id}`, payload);
       return data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || error.message);
+      return rejectWithValue(apiErrorMessage(error));
     }
   });
 
@@ -34,7 +35,7 @@ export function createEntitySlice(name: string, endpoint: string) {
       await api.delete(`${endpoint}/${id}`);
       return id;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || error.message);
+      return rejectWithValue(apiErrorMessage(error));
     }
   });
 

@@ -44,6 +44,7 @@ export function parseBookingEmail(text) {
 
 export async function createBookingFromEmail({ messageId, from, subject, text }) {
   const parsed = parseBookingEmail(text);
+  const senderEmail = normalizeSenderEmail(from);
   if (!isBookingEmail(parsed)) {
     await upsertEmailLog({ messageId, direction: "Incoming", from, subject, status: "Ignored", error: "Email does not contain required cab booking fields" });
     return { booking: null, status: "Ignored" };
@@ -67,6 +68,7 @@ export async function createBookingFromEmail({ messageId, from, subject, text })
     source: "Email",
     status: "New",
     emailMessageId: messageId,
+    senderEmail,
     timeline: [{ title: "Email parsed", note: subject }]
   });
   await upsertEmailLog({ messageId, direction: "Incoming", from, subject, status: "Parsed", relatedBooking: booking._id });
@@ -124,4 +126,10 @@ function normalizeMobile(value) {
   if (!value) return value;
   const match = String(value).match(/\d{10,15}/);
   return match ? match[0] : value;
+}
+
+function normalizeSenderEmail(value) {
+  if (!value) return "";
+  const match = String(value).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match ? match[0].toLowerCase() : "";
 }
