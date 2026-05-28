@@ -7,11 +7,18 @@ export function mailer() {
     host: env.smtp.host,
     port: env.smtp.port,
     secure: env.smtp.port === 465,
-    auth: env.smtp.user ? { user: env.smtp.user, pass: env.smtp.pass } : undefined
+    auth: env.smtp.user ? { user: env.smtp.user, pass: env.smtp.pass } : undefined,
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 60000
   });
 }
 
 export async function sendInvoiceEmail(invoice, pdfPath) {
+  if (!env.smtp.host || !env.smtp.user || !env.smtp.pass) {
+    throw new Error("SMTP is not configured. Please set SMTP_HOST, SMTP_USER, and SMTP_PASS in .env");
+  }
+
   const transport = mailer();
   const info = await transport.sendMail({
     from: env.smtp.from,
