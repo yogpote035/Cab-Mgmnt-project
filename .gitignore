@@ -1,9 +1,0 @@
-node_modules
-dist
-coverage
-*.log
-backend/src/logs/*.log
-backend/uploads
-backend/generated
-
-.env

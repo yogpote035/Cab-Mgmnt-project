@@ -1,0 +1,19 @@
+{"level":"error","message":"MongoDB connection failed querySrv ETIMEOUT _mongodb._tcp.cluster0.mkj8skh.mongodb.net","mongoUri":"mongodb+srv://click2hire2025:***@cluster0.mkj8skh.mongodb.net/CabManagementSystemAdmin?retryWrites=true&w=majority&appName=Cluster0","timestamp":"2026-05-27T13:32:33.690Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-27T13:33:03.193Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-27T13:33:31.068Z"}
+{"level":"warn","message":"Email polling failed Operation `bookings.findOne()` buffering timed out after 10000ms","timestamp":"2026-05-27T14:26:30.762Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-27T14:26:31.079Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-27T14:27:29.648Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-27T14:28:11.374Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-27T15:56:18.320Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-27T17:33:24.319Z"}
+{"level":"error","message":"MongoDB connection failed querySrv ETIMEOUT _mongodb._tcp.cluster0.mkj8skh.mongodb.net","mongoUri":"mongodb+srv://click2hire2025:***@cluster0.mkj8skh.mongodb.net/CabManagementSystemAdmin?retryWrites=true&w=majority&appName=Cluster0","timestamp":"2026-05-28T05:32:55.491Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-28T05:49:55.210Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-28T06:35:50.813Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-28T06:37:21.606Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-28T06:55:35.731Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-28T06:56:04.858Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-28T06:56:36.492Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-28T06:56:49.241Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-28T07:22:39.166Z"}
+{"level":"info","message":"MongoDB connected: CabManagementSystemAdmin","timestamp":"2026-05-28T07:23:25.393Z"}
