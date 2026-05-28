@@ -7,7 +7,7 @@ export function CarsPage() {
     { key: "registrationNumber", header: "Registration" }, { key: "vehicleModel", header: "Model" }, { key: "cabCategory", header: "Category" }, { key: "ratePerKm", header: "Rate/KM" }, { key: "status", header: "Status" }
   ]} fields={[
     { name: "registrationNumber", label: "Registration Number" }, { name: "vehicleType", label: "Vehicle Type" }, { name: "vehicleModel", label: "Vehicle Model" }, { name: "cabCategory", label: "Cab Category" }, { name: "ratePerKm", label: "Rate Per KM", type: "number" }, { name: "insurancePolicyNumber", label: "Insurance Policy Number", required: false }, { name: "status", label: "Status", type: "select", options: ["Available", "In Trip", "Maintenance"] }
-  ]} />;
+  ]} statusOptions={["Available", "In Trip", "Maintenance"]} />;
 }
 
 export function DriversPage() {
@@ -15,5 +15,5 @@ export function DriversPage() {
     { key: "driverName", header: "Driver" }, { key: "contactNumber", header: "Contact" }, { key: "licenseNumber", header: "License" }, { key: "status", header: "Status" }
   ]} fields={[
     { name: "driverName", label: "Driver Name" }, { name: "contactNumber", label: "Contact Number" }, { name: "alternateContact", label: "Alternate Contact", required: false }, { name: "licenseNumber", label: "License Number" }, { name: "address", label: "Address", required: false, full: true }, { name: "status", label: "Status", type: "select", options: ["Available", "In Trip", "Unavailable"] }
-  ]} />;
+  ]} statusOptions={["Available", "In Trip", "Unavailable"]} />;
 }

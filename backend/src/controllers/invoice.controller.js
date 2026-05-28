@@ -39,7 +39,7 @@ export const sendInvoice = asyncHandler(async (req, res) => {
   await invoice.save();
   const invoiceToSend = await Invoice.findById(req.params.id).populate("booking trip");
   await sendInvoiceEmail(invoiceToSend, invoiceToSend.pdfPath);
-  invoiceToSend.status = "Sent";
+  invoiceToSend.status = Number(invoiceToSend.balanceAmount || 0) === 0 ? "Paid" : "Sent";
   invoiceToSend.sentAt = new Date();
   await invoiceToSend.save();
   res.json(await Invoice.findById(req.params.id).populate("booking trip"));

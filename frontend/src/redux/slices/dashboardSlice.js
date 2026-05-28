@@ -1,9 +1,9 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { api } from "../../api/client";
 
-export const fetchDashboard = createAsyncThunk("dashboard/fetch", async (_, { rejectWithValue }) => {
+export const fetchDashboard = createAsyncThunk("dashboard/fetch", async (params = {}, { rejectWithValue }) => {
   try {
-    const { data } = await api.get("/dashboard");
+    const { data } = await api.get("/dashboard", { params });
     return data;
   } catch (error) {
     return rejectWithValue(error.response?.data?.message || error.message);

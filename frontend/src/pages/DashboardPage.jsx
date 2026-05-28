@@ -1,5 +1,5 @@
 import { Banknote, CalendarCheck, Car, ClipboardList, FileClock, IndianRupee, Route, Users } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { DashboardCharts } from "../components/charts/DashboardCharts";
 import { LoadingSkeleton } from "../components/common/LoadingSkeleton";
@@ -10,14 +10,23 @@ import { fetchDashboard } from "../redux/slices/dashboardSlice";
 export function DashboardPage() {
   const dispatch = useDispatch();
   const { data, loading } = useSelector((state) => state.dashboard);
-  useEffect(() => { dispatch(fetchDashboard()); }, [dispatch]);
+  const [period, setPeriod] = useState("month");
+  useEffect(() => { dispatch(fetchDashboard({ period })); }, [dispatch, period]);
   if (loading && !data) return <LoadingSkeleton rows={8} />;
   const cards = data?.cards || {};
+  const periodLabel = periodOptions.find((option) => option.value === period)?.label || "Month";
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-950 dark:text-white">Dashboard</h1>
-        <p className="text-sm text-slate-500">Live cab operations, billing, availability, and recent activity.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-950 dark:text-white">Dashboard</h1>
+          <p className="text-sm text-slate-500">Cab operations, billing, availability, and recent activity for this {periodLabel.toLowerCase()}.</p>
+        </div>
+        <select className="input w-56" value={period} onChange={(event) => setPeriod(event.target.value)} aria-label="Dashboard time filter">
+          {periodOptions.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={ClipboardList} label="Total Bookings" value={cards.totalBookings} />
@@ -29,7 +38,7 @@ export function DashboardPage() {
         <StatCard icon={Users} label="Available Drivers" value={cards.availableDrivers} />
         <StatCard icon={Car} label="Available Cars" value={cards.availableCars} />
       </div>
-      <DashboardCharts charts={data?.charts} />
+      <DashboardCharts charts={data?.charts} period={period} />
       <div className="grid gap-4 xl:grid-cols-2">
         <section className="panel p-4">
           <h2 className="mb-3 font-semibold">Recent Bookings</h2>
@@ -43,3 +52,10 @@ export function DashboardPage() {
     </div>
   );
 }
+
+const periodOptions = [
+  { label: "Day", value: "day" },
+  { label: "Week", value: "week" },
+  { label: "Month", value: "month" },
+  { label: "Year", value: "year" }
+];

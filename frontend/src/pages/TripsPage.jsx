@@ -1,4 +1,4 @@
-import { FileText, Pencil, Plus } from "lucide-react";
+import { Eye, FileText, Pencil, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { z } from "zod";
@@ -16,17 +16,19 @@ export function TripsPage() {
   const [open, setOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [activeTrip, setActiveTrip] = useState(null);
+  const [viewTrip, setViewTrip] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("");
   const trips = useSelector((s) => s.trips);
   const bookings = useSelector((s) => s.bookings.items);
   const drivers = useSelector((s) => s.drivers.items);
   const vehicles = useSelector((s) => s.vehicles.items);
 
   useEffect(() => {
-    dispatch(tripActions.fetchAll());
+    dispatch(tripActions.fetchAll(statusFilter ? { status: statusFilter } : {}));
     dispatch(bookingActions.fetchAll());
     dispatch(driverActions.fetchAll());
     dispatch(vehicleActions.fetchAll());
-  }, [dispatch]);
+  }, [dispatch, statusFilter]);
 
   const availableBookings = bookings.filter((booking) => ["New", "Pending Assignment"].includes(booking.status));
   const availableDrivers = drivers.filter((driver) => driver.status === "Available");
@@ -60,7 +62,15 @@ export function TripsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">Trips</h1><p className="text-sm text-slate-500">Assign, complete billing data, and generate invoices.</p></div>
-        <button className="btn-primary" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />Assign Trip</button>
+        <div className="flex gap-2">
+          <select className="input w-44" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="">All Status</option>
+            <option value="Assigned">Assigned</option>
+            <option value="In Trip">In Trip</option>
+            <option value="Completed">Completed</option>
+          </select>
+          <button className="btn-primary" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />Assign Trip</button>
+        </div>
       </div>
       <div className="panel p-4">
         <DataTable
@@ -76,6 +86,7 @@ export function TripsPage() {
           ]}
           actions={(row) => (
             <div className="flex justify-end gap-2">
+              <button className="btn-secondary p-2" title="View trip" onClick={() => setViewTrip(row)}><Eye className="h-4 w-4" /></button>
               <button className="btn-secondary" title="Edit trip status / billing data" onClick={() => { setActiveTrip(row); setCompleteOpen(true); }}><Pencil className="h-4 w-4" />Edit</button>
               <button className="btn-secondary p-2" title="Generate invoice" disabled={row.status !== "Completed"} onClick={async () => { await dispatch(generateInvoice(row._id)); }}><FileText className="h-4 w-4" /></button>
             </div>
@@ -116,17 +127,37 @@ export function TripsPage() {
           }}
         />
       </Modal>
+      <Modal open={Boolean(viewTrip)} title={`View Trip ${viewTrip?.tripNumber || ""}`} onClose={() => setViewTrip(null)}>
+        {viewTrip && <TripDetails trip={viewTrip} />}
+      </Modal>
     </div>
   );
+}
+
+function TripDetails({ trip }) {
+  const rows = [
+    ["Trip", trip.tripNumber],
+    ["Status", trip.status],
+    ["Passenger", trip.booking?.passengerName],
+    ["Driver", trip.driver?.driverName],
+    ["Vehicle", trip.vehicle?.registrationNumber],
+    ["KM OUT", trip.kmOut],
+    ["KM IN", trip.kmIn],
+    ["Total KM", trip.totalKm],
+    ["Toll", trip.tollCharges],
+    ["Parking", trip.parkingCharges],
+    ["Extras", trip.extraCharges]
+  ];
+  return <div className="grid gap-3 sm:grid-cols-2">{rows.map(([label, value]) => <div key={label} className="rounded-md border border-slate-200 p-3 dark:border-slate-800"><p className="text-xs font-semibold uppercase text-slate-400">{label}</p><p className="mt-1 text-sm text-slate-900 dark:text-white">{value ?? "-"}</p></div>)}</div>;
 }
 
 function tripDefaults(trip) {
   return {
     status: trip?.status || "Assigned",
-    kmOut: trip?.kmOut || 0,
-    kmIn: trip?.kmIn || 0,
-    timeOut: toDatetimeLocal(trip?.timeOut || new Date()),
-    timeIn: toDatetimeLocal(trip?.timeIn || new Date()),
+    kmOut: trip?.kmOut ?? "",
+    kmIn: trip?.kmIn ?? "",
+    timeOut: trip?.timeOut ? toDatetimeLocal(trip.timeOut) : "",
+    timeIn: trip?.timeIn ? toDatetimeLocal(trip.timeIn) : "",
     tollCharges: trip?.tollCharges || 0,
     parkingCharges: trip?.parkingCharges || 0,
     extraCharges: trip?.extraCharges || 0,
@@ -139,25 +170,33 @@ function toDatetimeLocal(value) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
+const optionalNumber = z.preprocess((value) => {
+  if (value === "" || value === null || Number.isNaN(value)) return undefined;
+  return value;
+}, z.coerce.number().min(0).optional());
+
 const tripStatusSchema = z.object({
   status: z.enum(["Assigned", "In Trip", "Completed"]),
-  kmOut: z.coerce.number().min(0),
-  kmIn: z.coerce.number().min(0),
+  kmOut: optionalNumber,
+  kmIn: optionalNumber,
   timeOut: z.string().optional(),
   timeIn: z.string().optional(),
-  tollCharges: z.coerce.number().min(0),
-  parkingCharges: z.coerce.number().min(0),
-  extraCharges: z.coerce.number().min(0),
-  userClosingKm: z.coerce.number().optional()
+  tollCharges: optionalNumber.default(0),
+  parkingCharges: optionalNumber.default(0),
+  extraCharges: optionalNumber.default(0),
+  userClosingKm: optionalNumber
 }).superRefine((values, ctx) => {
   if (values.status === "In Trip") {
+    if (values.kmOut === undefined) ctx.addIssue({ code: "custom", path: ["kmOut"], message: "KM OUT is required when trip is In Trip" });
     if (!values.timeOut) ctx.addIssue({ code: "custom", path: ["timeOut"], message: "Time OUT is required when trip is In Trip" });
   }
 
   if (values.status === "Completed") {
+    if (values.kmOut === undefined) ctx.addIssue({ code: "custom", path: ["kmOut"], message: "KM OUT is required" });
+    if (values.kmIn === undefined) ctx.addIssue({ code: "custom", path: ["kmIn"], message: "KM IN is required" });
     if (!values.timeOut) ctx.addIssue({ code: "custom", path: ["timeOut"], message: "Time OUT is required" });
     if (!values.timeIn) ctx.addIssue({ code: "custom", path: ["timeIn"], message: "Time IN is required" });
-    if (values.kmIn < values.kmOut) ctx.addIssue({ code: "custom", path: ["kmIn"], message: "KM IN must be greater than or equal to KM OUT" });
+    if (values.kmIn !== undefined && values.kmOut !== undefined && values.kmIn < values.kmOut) ctx.addIssue({ code: "custom", path: ["kmIn"], message: "KM IN must be greater than or equal to KM OUT" });
     if (values.timeOut && values.timeIn && new Date(values.timeIn) <= new Date(values.timeOut)) {
       ctx.addIssue({ code: "custom", path: ["timeIn"], message: "Time IN must be after Time OUT" });
     }

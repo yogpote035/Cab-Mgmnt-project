@@ -37,7 +37,6 @@ const sections = [
       { label: "Payment Reports", path: "/reports/payments", icon: BarChart3 },
       { label: "Revenue Reports", path: "/reports/revenue", icon: BarChart3 },
       { label: "Pending Payment Reports", path: "/reports/pending-payments", icon: BarChart3 },
-      { label: "GST Reports", path: "/reports/gst", icon: BarChart3 },
       { label: "Utilization Reports", path: "/reports/utilization", icon: BarChart3 },
       { label: "Custom Reports", path: "/reports/custom", icon: BarChart3 }
     ]
@@ -94,10 +93,10 @@ export function Sidebar({ open, onClose }) {
         ))}
       </nav>
       <div className="sticky bottom-0 border-t border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
-        <div className="mb-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-900">
+        {/* <div className="mb-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-900">
           <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{user?.name || "Admin"}</p>
           <p className="truncate text-xs text-slate-500">{user?.role || "Administrator"}</p>
-        </div>
+        </div> */}
         <button className="btn-secondary w-full justify-start" onClick={() => dispatch(logout())}>
           <LogOut className="h-4 w-4" />
           Logout

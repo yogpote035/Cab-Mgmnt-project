@@ -3,9 +3,10 @@ import { User } from "../models/User.js";
 import { Driver } from "../models/Driver.js";
 import { Vehicle } from "../models/Vehicle.js";
 import { Booking } from "../models/Booking.js";
+import { Counter } from "../models/Counter.js";
 
 await connectDB();
-await Promise.all([User.deleteMany(), Driver.deleteMany(), Vehicle.deleteMany(), Booking.deleteMany()]);
+await Promise.all([User.deleteMany(), Driver.deleteMany(), Vehicle.deleteMany(), Booking.deleteMany(), Counter.deleteMany()]);
 
 await User.create([
   { name: "Super Admin", email: "superadmin@caberp.local", password: "Admin@12345", role: "Super Admin" },
@@ -24,7 +25,6 @@ await Driver.create([
 ]);
 
 await Booking.create({
-  bookingId: "BK-DEMO-001",
   businessUnit: "EMSSI COE",
   passengerName: "Patel, Harsh [EMR/MSOL/PUNE]",
   mobileNumber: "9172333272",

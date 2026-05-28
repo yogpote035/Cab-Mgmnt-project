@@ -51,7 +51,7 @@ export async function getReport(type, query = {}) {
     "pending-payments": pendingPaymentReport,
     gst: gstReport,
     utilization: utilizationReport,
-    custom: bookingReport
+    custom: customReport
   };
   const report = await builders[normalizedType](query);
   return { type: normalizedType, title: reportTitles[normalizedType], ...report };
@@ -116,8 +116,8 @@ async function dailyTripsReport(query) {
   ]);
 }
 
-async function driverReport() {
-  const [drivers, trips] = await Promise.all([Driver.find().lean(), Trip.find().populate("driver vehicle").lean()]);
+async function driverReport(query = {}) {
+  const [drivers, trips] = await Promise.all([Driver.find().lean(), Trip.find(dateFilter(query, "createdAt")).populate("driver vehicle").lean()]);
   const rows = drivers.map((driver) => {
     const driverTrips = trips.filter((trip) => String(trip.driver?._id) === String(driver._id));
     const totalKm = sum(driverTrips, "totalKm");
@@ -136,8 +136,8 @@ async function driverReport() {
   return withCommon("drivers", rows, [["driverName", "Driver"], ["contactNumber", "Contact"], ["totalTrips", "Trips"], ["totalKm", "KM"], ["totalRevenue", "Revenue"], ["averageKm", "Avg KM"], ["activeDays", "Active Days"], ["lastTripDate", "Last Trip"], ["driverStatus", "Status"]]);
 }
 
-async function vehicleReport() {
-  const [vehicles, trips] = await Promise.all([Vehicle.find().lean(), Trip.find().populate("vehicle").lean()]);
+async function vehicleReport(query = {}) {
+  const [vehicles, trips] = await Promise.all([Vehicle.find().lean(), Trip.find(dateFilter(query, "createdAt")).populate("vehicle").lean()]);
   const rows = vehicles.map((vehicle) => {
     const vehicleTrips = trips.filter((trip) => String(trip.vehicle?._id) === String(vehicle._id));
     return {
@@ -156,8 +156,13 @@ async function vehicleReport() {
   return withCommon("vehicles", rows, [["vehicleNumber", "Vehicle"], ["vehicleType", "Type"], ["totalTrips", "Trips"], ["totalKm", "KM"], ["revenueGenerated", "Revenue"], ["maintenanceStatus", "Maintenance"], ["availabilityStatus", "Status"], ["lastTripDate", "Last Trip"], ["insuranceExpiry", "Insurance"], ["fitnessExpiry", "Fitness"]]);
 }
 
-async function bookingReport(query) {
+async function bookingReport(query, type = "bookings") {
   const bookings = await Booking.find({ ...dateFilter(query, "createdAt"), ...(query.status ? { status: query.status } : {}) }).sort({ createdAt: -1 }).lean();
+  const bookingIds = bookings.map((booking) => booking._id);
+  const [trips, invoices] = await Promise.all([
+    Trip.find({ booking: { $in: bookingIds } }).populate("vehicle").lean(),
+    Invoice.find({ booking: { $in: bookingIds } }).populate("trip").lean()
+  ]);
   const rows = bookings.map((booking) => ({
     bookingId: booking.bookingId,
     cabRequestNumber: booking.cabRequestNumber,
@@ -169,9 +174,18 @@ async function bookingReport(query) {
     travelDate: formatDate(booking.travelStartDate),
     employeeCount: booking.employeeCount,
     projectCode: booking.costCenter,
+    totalKm: sum(trips.filter((trip) => String(trip.booking) === String(booking._id)), "totalKm"),
+    revenue: sum(invoices.filter((invoice) => String(invoice.booking) === String(booking._id)), "finalAmount"),
+    outstanding: sum(invoices.filter((invoice) => String(invoice.booking) === String(booking._id)), "balanceAmount"),
     bookingStatus: booking.status
   }));
-  return withCommon("bookings", rows, [["bookingId", "Booking"], ["cabRequestNumber", "Request No"], ["passengerName", "Passenger"], ["businessUnit", "Business Unit"], ["pickupLocation", "Pickup"], ["dropLocation", "Drop"], ["carType", "Car Type"], ["travelDate", "Travel Date"], ["employeeCount", "Employees"], ["projectCode", "Project Code"], ["bookingStatus", "Status"]]);
+  return withCommon(type, rows, [["bookingId", "Booking"], ["cabRequestNumber", "Request No"], ["passengerName", "Passenger"], ["businessUnit", "Business Unit"], ["pickupLocation", "Pickup"], ["dropLocation", "Drop"], ["carType", "Car Type"], ["travelDate", "Travel Date"], ["employeeCount", "Employees"], ["projectCode", "Project Code"], ["totalKm", "KM"], ["revenue", "Revenue"], ["outstanding", "Outstanding"], ["bookingStatus", "Status"]], {
+    summary: invoiceTripSummary(invoices, trips, rows.length)
+  });
+}
+
+async function customReport(query = {}) {
+  return bookingReport(query, "custom");
 }
 
 async function invoiceReport(query) {
@@ -192,12 +206,17 @@ async function invoiceReport(query) {
   return withCommon("invoices", rows, [["invoiceNumber", "Invoice"], ["invoiceDate", "Date"], ["passengerName", "Passenger"], ["businessUnit", "Business Unit"], ["totalKm", "KM"], ["baseAmount", "Base"], ["gstAmount", "GST"], ["extraCharges", "Extras"], ["finalAmount", "Final"], ["paymentStatus", "Payment"], ["invoiceStatus", "Status"]]);
 }
 
-async function paymentReport() {
-  const payments = await Payment.find().populate("invoice").sort({ createdAt: -1 }).lean();
+async function paymentReport(query = {}) {
+  const payments = await Payment.find(dateFilter(query, "paymentDate"))
+    .populate({ path: "invoice", populate: { path: "trip" } })
+    .sort({ createdAt: -1 })
+    .lean();
   const rows = payments.map((payment) => ({
     invoiceNumber: payment.invoice?.invoiceNumber,
     paymentDate: formatDate(payment.paymentDate),
     paymentAmount: payment.amount,
+    totalKm: payment.invoice?.trip?.totalKm || 0,
+    revenue: payment.amount || 0,
     outstandingAmount: payment.invoice?.balanceAmount,
     paymentMode: payment.method,
     referenceNumber: payment.referenceNumber,
@@ -205,37 +224,49 @@ async function paymentReport() {
     clientName: payment.invoice?.clientName,
     paymentStatus: payment.invoice?.status
   }));
-  return withCommon("payments", rows, [["invoiceNumber", "Invoice"], ["paymentDate", "Date"], ["paymentAmount", "Amount"], ["outstandingAmount", "Outstanding"], ["paymentMode", "Mode"], ["referenceNumber", "Reference"], ["transactionId", "Transaction"], ["clientName", "Client"], ["paymentStatus", "Status"]]);
+  return withCommon("payments", rows, [["invoiceNumber", "Invoice"], ["paymentDate", "Date"], ["paymentAmount", "Amount"], ["totalKm", "KM"], ["revenue", "Revenue"], ["outstandingAmount", "Outstanding"], ["paymentMode", "Mode"], ["referenceNumber", "Reference"], ["transactionId", "Transaction"], ["clientName", "Client"], ["paymentStatus", "Status"]], {
+    summary: {
+      records: rows.length,
+      totalKm: sumUniqueInvoiceTripKm(payments),
+      totalRevenue: sum(rows, "paymentAmount"),
+      pendingAmount: sumUniqueInvoiceBalances(payments),
+      gstAmount: 0
+    }
+  });
 }
 
-async function revenueReport() {
-  const invoices = await Invoice.find().lean();
+async function revenueReport(query = {}) {
+  const invoices = await Invoice.find(dateFilter(query, "createdAt")).populate("trip").lean();
   const grouped = groupByMonth(invoices);
   const rows = Object.entries(grouped).map(([month, list]) => ({
     month,
     totalTrips: list.length,
+    totalKm: sum(list.map((invoice) => invoice.trip || {}), "totalKm"),
     revenue: sum(list, "finalAmount"),
     gst: sum(list, "gstAmount"),
     netEarnings: sum(list, "subtotal"),
+    pendingAmount: sum(list, "balanceAmount"),
     expenses: 0,
     profit: sum(list, "subtotal")
   }));
-  return withCommon("revenue", rows, [["month", "Month"], ["totalTrips", "Trips"], ["revenue", "Revenue"], ["gst", "GST"], ["netEarnings", "Net"], ["expenses", "Expenses"], ["profit", "Profit"]]);
+  return withCommon("revenue", rows, [["month", "Month"], ["totalTrips", "Trips"], ["totalKm", "KM"], ["revenue", "Revenue"], ["gst", "GST"], ["netEarnings", "Net"], ["pendingAmount", "Outstanding"], ["expenses", "Expenses"], ["profit", "Profit"]]);
 }
 
-async function pendingPaymentReport() {
-  const invoices = await Invoice.find({ balanceAmount: { $gt: 0 } }).sort({ dueDate: 1 }).lean();
+async function pendingPaymentReport(query = {}) {
+  const invoices = await Invoice.find({ balanceAmount: { $gt: 0 }, ...dateFilter(query, "createdAt") }).populate("trip").sort({ dueDate: 1 }).lean();
   const rows = invoices.map((invoice) => ({
     invoiceNumber: invoice.invoiceNumber,
     clientName: invoice.clientName,
     invoiceDate: formatDate(invoice.createdAt),
     dueDate: formatDate(invoice.dueDate),
+    totalKm: invoice.trip?.totalKm || 0,
+    finalAmount: invoice.finalAmount,
     pendingAmount: invoice.balanceAmount,
     daysOutstanding: Math.max(Math.floor((Date.now() - new Date(invoice.createdAt)) / 86400000), 0),
     contactPerson: invoice.clientEmail,
     paymentStatus: invoice.status
   }));
-  return withCommon("pending-payments", rows, [["invoiceNumber", "Invoice"], ["clientName", "Client"], ["invoiceDate", "Invoice Date"], ["dueDate", "Due Date"], ["pendingAmount", "Pending"], ["daysOutstanding", "Days"], ["contactPerson", "Contact"], ["paymentStatus", "Status"]]);
+  return withCommon("pending-payments", rows, [["invoiceNumber", "Invoice"], ["clientName", "Client"], ["invoiceDate", "Invoice Date"], ["dueDate", "Due Date"], ["totalKm", "KM"], ["finalAmount", "Revenue"], ["pendingAmount", "Pending"], ["daysOutstanding", "Days"], ["contactPerson", "Contact"], ["paymentStatus", "Status"]]);
 }
 
 async function gstReport(query) {
@@ -251,23 +282,38 @@ async function gstReport(query) {
   return withCommon("gst", rows, [["invoiceNumber", "Invoice"], ["invoiceDate", "Date"], ["baseAmount", "Taxable"], ["gstPercentage", "GST %"], ["gstAmount", "GST"], ["finalAmount", "Final"]]);
 }
 
-async function utilizationReport() {
-  const [trips, drivers, vehicles, bookings] = await Promise.all([Trip.find().lean(), Driver.find().lean(), Vehicle.find().lean(), Booking.find().lean()]);
+async function utilizationReport(query = {}) {
+  const range = dateFilter(query, "createdAt");
+  const [trips, drivers, vehicles, bookings, invoices] = await Promise.all([
+    Trip.find(range).populate("vehicle").lean(),
+    Driver.find().lean(),
+    Vehicle.find().lean(),
+    Booking.find(range).lean(),
+    Invoice.find(range).lean()
+  ]);
   const rows = [
     { metric: "Driver Utilization", value: drivers.length ? `${Math.round((drivers.filter((d) => d.status === "In Trip").length / drivers.length) * 100)}%` : "0%" },
     { metric: "Vehicle Utilization", value: vehicles.length ? `${Math.round((vehicles.filter((v) => v.status === "In Trip").length / vehicles.length) * 100)}%` : "0%" },
     { metric: "Booking Completion Rate", value: bookings.length ? `${Math.round((trips.filter((t) => t.status === "Completed").length / bookings.length) * 100)}%` : "0%" },
     { metric: "Average Trip Duration", value: `${average(trips, "totalHours")} hrs` }
   ];
-  return withCommon("utilization", rows, [["metric", "Metric"], ["value", "Value"]]);
+  return withCommon("utilization", rows, [["metric", "Metric"], ["value", "Value"]], {
+    summary: {
+      records: rows.length,
+      totalKm: sum(trips, "totalKm"),
+      totalRevenue: sum(invoices, "finalAmount") || tripFareTotal(trips),
+      pendingAmount: sum(invoices, "balanceAmount"),
+      gstAmount: sum(invoices, "gstAmount")
+    }
+  });
 }
 
-function withCommon(type, rows, columnPairs) {
+function withCommon(type, rows, columnPairs, options = {}) {
   const columns = columnPairs.map(([key, header]) => ({ key, header }));
   return {
     columns,
     rows,
-    summary: summarize(rows),
+    summary: options.summary || summarize(rows),
     charts: {
       trend: rows.slice(0, 12).map((row, index) => ({ name: row.month || row.invoiceDate || row.travelDate || row.tripId || String(index + 1), value: row.finalAmount || row.revenue || row.totalTrips || row.totalKm || row.pendingAmount || 0 })),
       status: statusBreakdown(rows)
@@ -281,8 +327,8 @@ function summarize(rows) {
   return {
     records: rows.length,
     totalKm: sum(rows, "totalKm"),
-    totalRevenue: sum(rows, "finalAmount") || sum(rows, "revenue") || sum(rows, "revenueGenerated") || sum(rows, "totalRevenue"),
-    pendingAmount: sum(rows, "pendingAmount"),
+    totalRevenue: sum(rows, "finalAmount") || sum(rows, "revenue") || sum(rows, "revenueGenerated") || sum(rows, "totalRevenue") || sum(rows, "paymentAmount"),
+    pendingAmount: sum(rows, "pendingAmount") || sum(rows, "outstanding") || sum(rows, "outstandingAmount"),
     gstAmount: sum(rows, "gstAmount")
   };
 }
@@ -300,8 +346,16 @@ function dateFilter(query, field) {
   const filter = {};
   if (query.from || query.to) {
     filter[field] = {};
-    if (query.from) filter[field].$gte = new Date(query.from);
-    if (query.to) filter[field].$lte = new Date(query.to);
+    if (query.from) {
+      const from = new Date(query.from);
+      from.setHours(0, 0, 0, 0);
+      filter[field].$gte = from;
+    }
+    if (query.to) {
+      const to = new Date(query.to);
+      to.setHours(23, 59, 59, 999);
+      filter[field].$lte = to;
+    }
   }
   return filter;
 }
@@ -318,6 +372,36 @@ function groupByMonth(items) {
 
 function sum(items, key) {
   return items.reduce((total, item) => total + Number(item[key] || 0), 0);
+}
+
+function invoiceTripSummary(invoices, trips = [], records = invoices.length || trips.length) {
+  return {
+    records,
+    totalKm: sum(invoices.map((invoice) => invoice.trip || {}), "totalKm") || sum(trips, "totalKm"),
+    totalRevenue: sum(invoices, "finalAmount") || tripFareTotal(trips),
+    pendingAmount: sum(invoices, "balanceAmount"),
+    gstAmount: sum(invoices, "gstAmount")
+  };
+}
+
+function tripFareTotal(trips = []) {
+  return trips.reduce((total, trip) => total + ((trip.totalKm || 0) * (trip.vehicle?.ratePerKm || 0)) + (trip.tollCharges || 0) + (trip.parkingCharges || 0) + (trip.extraCharges || 0), 0);
+}
+
+function sumUniqueInvoiceBalances(payments = []) {
+  const balances = new Map();
+  for (const payment of payments) {
+    if (payment.invoice?._id) balances.set(String(payment.invoice._id), Number(payment.invoice.balanceAmount || 0));
+  }
+  return [...balances.values()].reduce((total, value) => total + value, 0);
+}
+
+function sumUniqueInvoiceTripKm(payments = []) {
+  const kms = new Map();
+  for (const payment of payments) {
+    if (payment.invoice?._id) kms.set(String(payment.invoice._id), Number(payment.invoice.trip?.totalKm || 0));
+  }
+  return [...kms.values()].reduce((total, value) => total + value, 0);
 }
 
 function average(items, key) {

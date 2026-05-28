@@ -1,4 +1,4 @@
-import { Lock, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { z } from "zod";
@@ -6,12 +6,14 @@ import { EntityForm } from "../components/forms/EntityForm";
 import { Modal } from "../components/common/Modal";
 import { DataTable } from "../components/tables/DataTable";
 
-export function EntityPage({ title, subtitle, stateKey, actions, columns, fields, schema, defaults, extraActions, canEditRow = () => true, lockedLabel = "Locked" }) {
+export function EntityPage({ title, subtitle, stateKey, actions, columns, fields, schema, defaults, extraActions, canEditRow = () => true, lockedLabel = "Locked", statusOptions = [] }) {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [editingRow, setEditingRow] = useState(null);
+  const [viewRow, setViewRow] = useState(null);
+  const [status, setStatus] = useState("");
   const state = useSelector((store) => store[stateKey]);
-  useEffect(() => { dispatch(actions.fetchAll()); }, [dispatch, actions]);
+  useEffect(() => { dispatch(actions.fetchAll(status ? { status } : {})); }, [dispatch, actions, status]);
   const formSchema = schema || z.object(Object.fromEntries(fields.map((field) => [field.name, field.type === "number" ? z.coerce.number().min(0) : z.string().min(field.required === false ? 0 : 1, "Required")])));
   return (
     <div className="space-y-4">
@@ -21,6 +23,12 @@ export function EntityPage({ title, subtitle, stateKey, actions, columns, fields
           <p className="text-sm text-slate-500">{subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {statusOptions.length > 0 && (
+            <select className="input w-48" value={status} onChange={(event) => setStatus(event.target.value)}>
+              <option value="">All Status</option>
+              {statusOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          )}
           {extraActions}
           <button className="btn-primary" onClick={() => { setEditingRow(null); setOpen(true); }}><Plus className="h-4 w-4" />Add</button>
         </div>
@@ -43,6 +51,9 @@ export function EntityPage({ title, subtitle, stateKey, actions, columns, fields
 
             return (
               <div className="flex justify-end gap-2">
+                <button className="btn-secondary p-2" onClick={() => setViewRow(row)} aria-label="View">
+                  <Eye className="h-4 w-4" />
+                </button>
                 <button className="btn-secondary p-2" onClick={() => { setEditingRow(row); setOpen(true); }} aria-label="Edit">
                   <Pencil className="h-4 w-4" />
                 </button>
@@ -71,6 +82,24 @@ export function EntityPage({ title, subtitle, stateKey, actions, columns, fields
           }}
         />
       </Modal>
+      <Modal open={Boolean(viewRow)} title={`View ${title}`} onClose={() => setViewRow(null)}>
+        {viewRow && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {Object.entries(viewRow).filter(([key]) => !["_id", "__v"].includes(key)).map(([key, value]) => (
+              <div key={key} className="rounded-md border border-slate-200 p-3 dark:border-slate-800">
+                <p className="text-xs font-semibold uppercase text-slate-400">{key}</p>
+                <p className="mt-1 break-words text-sm text-slate-900 dark:text-white">{formatValue(value)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   );
+}
+
+function formatValue(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "object") return value.name || value.driverName || value.registrationNumber || value.bookingId || JSON.stringify(value);
+  return String(value);
 }

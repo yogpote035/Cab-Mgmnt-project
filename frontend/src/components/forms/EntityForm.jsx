@@ -21,6 +21,7 @@ export function EntityForm({ schema, fields, defaults = {}, onSubmit, submitLabe
             <input
               className="input"
               type={field.type || "text"}
+              placeholder={field.placeholder}
               step={field.type === "number" ? field.step || "any" : undefined}
               inputMode={field.type === "number" ? "decimal" : undefined}
               {...register(field.name, { valueAsNumber: field.type === "number" })}

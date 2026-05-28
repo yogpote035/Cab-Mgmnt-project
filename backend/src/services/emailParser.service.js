@@ -46,28 +46,31 @@ export async function createBookingFromEmail({ messageId, from, subject, text })
   const parsed = parseBookingEmail(text);
   if (!isBookingEmail(parsed)) {
     await upsertEmailLog({ messageId, direction: "Incoming", from, subject, status: "Ignored", error: "Email does not contain required cab booking fields" });
-    return null;
+    return { booking: null, status: "Ignored" };
   }
 
-  const duplicateFilters = [{ emailMessageId: messageId }];
-  if (parsed.cabRequestNumber) duplicateFilters.push({ cabRequestNumber: parsed.cabRequestNumber });
+  const duplicateFilter = parsed.cabRequestNumber
+    ? { cabRequestNumber: parsed.cabRequestNumber }
+    : { emailMessageId: messageId };
 
-  const existing = await Booking.findOne({ $or: duplicateFilters });
+  const existing = await Booking.findOne(duplicateFilter);
   if (existing) {
-    await upsertEmailLog({ messageId, direction: "Incoming", from, subject, status: "Duplicate", relatedBooking: existing._id });
-    return existing;
+    const duplicateReason = parsed.cabRequestNumber
+      ? `Cab Request No already exists: ${parsed.cabRequestNumber}`
+      : "Email message already processed";
+    await upsertEmailLog({ messageId, direction: "Incoming", from, subject, status: "Duplicate", error: duplicateReason, relatedBooking: existing._id });
+    return { booking: existing, status: "Duplicate", duplicateReason };
   }
 
   const booking = await Booking.create({
     ...parsed,
-    bookingId: `BK-${Date.now()}`,
     source: "Email",
     status: "New",
     emailMessageId: messageId,
     timeline: [{ title: "Email parsed", note: subject }]
   });
   await upsertEmailLog({ messageId, direction: "Incoming", from, subject, status: "Parsed", relatedBooking: booking._id });
-  return booking;
+  return { booking, status: "Parsed" };
 }
 
 export function isBookingEmail(parsed) {

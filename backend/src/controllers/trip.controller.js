@@ -1,6 +1,7 @@
 import { Booking } from "../models/Booking.js";
 import { Driver } from "../models/Driver.js";
 import { DutySlip } from "../models/DutySlip.js";
+import { Invoice } from "../models/Invoice.js";
 import { Trip } from "../models/Trip.js";
 import { Vehicle } from "../models/Vehicle.js";
 import { ApiError } from "../utils/apiError.js";
@@ -12,10 +13,12 @@ export const listTrips = asyncHandler(async (req, res) => {
   const limit = Number(req.query.limit || 10);
   const filter = req.query.status ? { status: req.query.status } : {};
   const [items, total] = await Promise.all([
-    Trip.find(filter).populate("booking driver vehicle").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    Trip.find(filter).populate("booking driver vehicle").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     Trip.countDocuments(filter)
   ]);
-  res.json({ items, total, page, pages: Math.ceil(total / limit) || 1 });
+  const invoiceTripIds = await Invoice.find({ trip: { $in: items.map((trip) => trip._id) } }).distinct("trip");
+  const invoiced = new Set(invoiceTripIds.map(String));
+  res.json({ items: items.map((trip) => ({ ...trip, hasInvoice: invoiced.has(String(trip._id)) })), total, page, pages: Math.ceil(total / limit) || 1 });
 });
 
 export const assignTrip = asyncHandler(async (req, res) => {
@@ -77,6 +80,8 @@ export const updateTripStatus = asyncHandler(async (req, res) => {
     const kmIn = Number(req.body.kmIn);
     const timeOut = new Date(req.body.timeOut || trip.timeOut);
     const timeIn = new Date(req.body.timeIn || Date.now());
+    if (!hasNumber(req.body.kmOut ?? trip.kmOut)) throw new ApiError(400, "KM OUT is required to complete trip");
+    if (!hasNumber(req.body.kmIn)) throw new ApiError(400, "KM IN is required to complete trip");
     if (!req.body.timeOut && !trip.timeOut) throw new ApiError(400, "Time OUT is required to complete trip");
     if (!req.body.timeIn) throw new ApiError(400, "Time IN is required to complete trip");
     if (kmIn < kmOut) throw new ApiError(400, "KM IN must be greater than or equal to KM OUT");
@@ -94,12 +99,12 @@ export const updateTripStatus = asyncHandler(async (req, res) => {
     trip.driver.status = "Available";
     trip.vehicle.status = "Available";
   } else {
-    if (status === "In Trip" && (req.body.kmOut === undefined || !req.body.timeOut)) {
+    if (status === "In Trip" && (!hasNumber(req.body.kmOut ?? trip.kmOut) || !(req.body.timeOut || trip.timeOut))) {
       throw new ApiError(400, "KM OUT and Time OUT are required to mark trip In Trip");
     }
     Object.assign(trip, {
       status,
-      kmOut: req.body.kmOut ?? trip.kmOut,
+      kmOut: hasNumber(req.body.kmOut) ? req.body.kmOut : trip.kmOut,
       timeOut: req.body.timeOut || trip.timeOut
     });
     trip.driver.status = "In Trip";
@@ -118,3 +123,7 @@ export const dutySlip = asyncHandler(async (req, res) => {
   const slip = await DutySlip.create({ slipNumber: `DS-${String(count + 1).padStart(6, "0")}`, trip: trip._id, pdfPath, generatedBy: req.user._id });
   res.json(slip);
 });
+
+function hasNumber(value) {
+  return value !== undefined && value !== null && value !== "" && !Number.isNaN(Number(value));
+}

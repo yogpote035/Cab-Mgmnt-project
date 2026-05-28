@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { Counter } from "./Counter.js";
 
 const timelineSchema = new mongoose.Schema({
   title: String,
@@ -32,5 +33,21 @@ const bookingSchema = new mongoose.Schema({
   emailMessageId: { type: String, unique: true, sparse: true },
   timeline: [timelineSchema]
 }, { timestamps: true });
+
+bookingSchema.pre("validate", async function assignBookingId(next) {
+  if (!this.isNew || this.bookingId) return next();
+
+  try {
+    const counter = await Counter.findOneAndUpdate(
+      { key: "booking" },
+      { $inc: { value: 1 } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    this.bookingId = `BK-${String(counter.value).padStart(2, "0")}`;
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 export const Booking = mongoose.model("Booking", bookingSchema);

@@ -1,8 +1,9 @@
-import { Download, Eye, FileBarChart, Printer, RefreshCcw, RotateCcw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Columns3, Download, Eye, FileBarChart, Printer, RefreshCcw, RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { EmptyState } from "../components/common/EmptyState";
 import { StatCard } from "../components/common/StatCard";
 import { DataTable } from "../components/tables/DataTable";
 import { fetchReportByType, fetchReports } from "../redux/slices/reportSlice";
@@ -23,6 +24,7 @@ const reportLabels = {
 };
 
 const colors = ["#2388d9", "#10b981", "#f59e0b", "#ef4444", "#64748b"];
+const tooltipStyle = { borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 12px 30px rgba(15, 23, 42, 0.12)" };
 
 export function ReportsPage() {
   const { type = "daily-trips" } = useParams();
@@ -30,12 +32,23 @@ export function ReportsPage() {
   const { current, data, loading } = useSelector((state) => state.reports);
   const [filters, setFilters] = useState({ from: "", to: "", search: "", status: "" });
   const [visibleColumns, setVisibleColumns] = useState({});
+  const [columnMenuOpen, setColumnMenuOpen] = useState(false);
+  const columnMenuRef = useRef(null);
 
   useEffect(() => { dispatch(fetchReports()); }, [dispatch]);
   useEffect(() => { dispatch(fetchReportByType({ type, params: filters })); }, [dispatch, type]);
   useEffect(() => {
     if (current?.columns) setVisibleColumns(Object.fromEntries(current.columns.map((column) => [column.key, true])));
+    setColumnMenuOpen(false);
   }, [current?.type]);
+  useEffect(() => {
+    if (!columnMenuOpen) return undefined;
+    function closeOnOutsideClick(event) {
+      if (!columnMenuRef.current?.contains(event.target)) setColumnMenuOpen(false);
+    }
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [columnMenuOpen]);
 
   const rows = useMemo(() => {
     const search = filters.search.toLowerCase();
@@ -43,6 +56,9 @@ export function ReportsPage() {
   }, [current?.rows, filters.search]);
   const columns = (current?.columns || []).filter((column) => visibleColumns[column.key] !== false);
   const exportQuery = new URLSearchParams(Object.fromEntries(Object.entries(filters).filter(([, value]) => value))).toString();
+  const summary = current?.summary || {};
+  const trendData = current?.charts?.trend || [];
+  const statusData = current?.charts?.status || [];
 
   function applyFilters() {
     dispatch(fetchReportByType({ type, params: filters }));
@@ -69,10 +85,10 @@ export function ReportsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={FileBarChart} label="Records" value={current?.summary?.records || data?.invoiceCount || 0} />
-        <StatCard icon={FileBarChart} label="Total KM" value={current?.summary?.totalKm || 0} />
-        <StatCard icon={FileBarChart} label="Revenue" value={`Rs ${Number(current?.summary?.totalRevenue || data?.revenue || 0).toLocaleString()}`} tone="green" />
-        <StatCard icon={FileBarChart} label="Outstanding" value={`Rs ${Number(current?.summary?.pendingAmount || data?.outstanding || 0).toLocaleString()}`} tone="amber" />
+        <StatCard icon={FileBarChart} label="Records" value={summary.records ?? data?.invoiceCount ?? 0} />
+        <StatCard icon={FileBarChart} label="Total KM" value={summary.totalKm ?? 0} />
+        <StatCard icon={FileBarChart} label="Revenue" value={`Rs ${Number(summary.totalRevenue ?? data?.revenue ?? 0).toLocaleString()}`} tone="green" />
+        <StatCard icon={FileBarChart} label="Outstanding" value={`Rs ${Number(summary.pendingAmount ?? data?.outstanding ?? 0).toLocaleString()}`} tone="amber" />
       </div>
 
       <section className="panel p-4">
@@ -90,29 +106,50 @@ export function ReportsPage() {
 
       <div className="grid gap-4 xl:grid-cols-3">
         <section className="panel p-4 xl:col-span-2">
-          <h2 className="mb-4 font-semibold">Trend Analytics</h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={current?.charts?.trend || []}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Bar dataKey="value" fill="#2388d9" radius={[4, 4, 0, 0]} /></BarChart>
-          </ResponsiveContainer>
+          <h2 className="mb-1 font-semibold">Trend Analytics</h2>
+          <p className="mb-4 text-xs text-slate-500">Filtered report movement</p>
+          {trendData.length ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={trendData}><CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} /><XAxis dataKey="name" tickLine={false} axisLine={false} /><YAxis tickLine={false} axisLine={false} /><Tooltip contentStyle={tooltipStyle} /><Bar dataKey="value" fill="#2388d9" radius={[6, 6, 0, 0]} maxBarSize={44} /></BarChart>
+            </ResponsiveContainer>
+          ) : <EmptyState />}
         </section>
         <section className="panel p-4">
-          <h2 className="mb-4 font-semibold">Status Split</h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart><Pie data={current?.charts?.status || []} dataKey="value" nameKey="name" outerRadius={82}>{(current?.charts?.status || []).map((_, index) => <Cell key={index} fill={colors[index % colors.length]} />)}</Pie><Tooltip /></PieChart>
-          </ResponsiveContainer>
+          <h2 className="mb-1 font-semibold">Status Split</h2>
+          <p className="mb-4 text-xs text-slate-500">Current filtered distribution</p>
+          {statusData.length ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart><Pie data={statusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={82} paddingAngle={3}>{statusData.map((_, index) => <Cell key={index} fill={colors[index % colors.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
+            </ResponsiveContainer>
+          ) : <EmptyState />}
         </section>
       </div>
 
       <section className="panel p-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-semibold">Report Table</h2>
-          <div className="flex flex-wrap gap-2">
-            {(current?.columns || []).map((column) => (
-              <label key={column.key} className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs dark:border-slate-700">
-                <input type="checkbox" checked={visibleColumns[column.key] !== false} onChange={(e) => setVisibleColumns((v) => ({ ...v, [column.key]: e.target.checked }))} />
-                <Eye className="h-3 w-3" />{column.header}
-              </label>
-            ))}
+          <div className="relative" ref={columnMenuRef}>
+            <button className="btn-secondary" type="button" onClick={() => setColumnMenuOpen((open) => !open)}>
+              <Columns3 className="h-4 w-4" />
+              Columns
+            </button>
+            {columnMenuOpen && (
+              <div className="absolute right-0 z-20 mt-2 w-[160px] rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-800 dark:bg-slate-950">
+                <div className="mb-2 flex items-center justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">Visible Columns</span>
+                  <button className="text-xs font-semibold text-brand-600" type="button" onClick={() => setVisibleColumns(Object.fromEntries((current?.columns || []).map((column) => [column.key, true])))}>All</button>
+                </div>
+                <div className="max-h-72 space-y-1 overflow-y-auto">
+                  {(current?.columns || []).map((column) => (
+                    <label key={column.key} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
+                      <input type="checkbox" checked={visibleColumns[column.key] !== false} onChange={(e) => setVisibleColumns((v) => ({ ...v, [column.key]: e.target.checked }))} />
+                      <Eye className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="text-slate-700 dark:text-slate-200">{column.header}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <DataTable loading={loading} rows={rows.map((row, index) => ({ _id: row._id || `${type}-${index}`, ...row }))} columns={columns} />

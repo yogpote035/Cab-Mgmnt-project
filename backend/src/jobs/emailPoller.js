@@ -4,11 +4,14 @@ import { createBookingFromEmail } from "../services/emailParser.service.js";
 import { logger } from "../utils/logger.js";
 
 let isPolling = false;
+const AUTO_SCAN_DAYS_BACK = 3;
+const MAX_MESSAGES_PER_POLL = 25;
+const POLL_TIMEOUT_MS = 55 * 1000;
 
 export function startEmailPolling() {
   if (!env.enableEmailPolling || !env.imap.host) return;
-  setInterval(runPollSafely, 60 * 1000);
-  runPollSafely();
+  setInterval(() => runPollSafely({ includeSeen: true, daysBack: AUTO_SCAN_DAYS_BACK }), 60 * 1000);
+  runPollSafely({ includeSeen: true, daysBack: AUTO_SCAN_DAYS_BACK });
 }
 
 export async function scanInboxNow() {
@@ -38,7 +41,7 @@ async function pollInbox({ includeSeen = false, daysBack = 7 } = {}) {
     secure: true,
     auth: { user: env.imap.user, pass: env.imap.pass },
     logger: false,
-    socketTimeout: 120000,
+    socketTimeout: 45000,
     connectionTimeout: 30000,
     greetingTimeout: 30000
   });
@@ -48,29 +51,56 @@ async function pollInbox({ includeSeen = false, daysBack = 7 } = {}) {
   });
 
   let lock;
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    logger.warn("Email polling session timed out; closing IMAP connection");
+    client.close();
+  }, POLL_TIMEOUT_MS);
+
   try {
     await client.connect();
     lock = await client.getMailboxLock("INBOX");
 
-    const range = includeSeen
-      ? { since: new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000) }
-      : { seen: false };
+    const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    const searchQuery = includeSeen
+      ? { since }
+      : { or: [{ seen: false }, { since }] };
+    const foundUids = await client.search(searchQuery, { uid: true });
+    const uids = [...new Set(foundUids || [])].sort((a, b) => a - b).slice(-MAX_MESSAGES_PER_POLL);
 
-    for await (const msg of client.fetch(range, { envelope: true, source: true, uid: true })) {
+    logger.info("Email polling started", {
+      includeSeen,
+      daysBack,
+      found: foundUids?.length || 0,
+      processing: uids.length
+    });
+
+    if (!uids.length) return;
+
+    for await (const msg of client.fetch(uids, { envelope: true, source: true, flags: true, uid: true }, { uid: true })) {
+      if (timedOut) break;
       const text = msg.source.toString();
-      const booking = await createBookingFromEmail({
+      const result = await createBookingFromEmail({
         messageId: msg.envelope.messageId || String(msg.uid),
         from: msg.envelope.from?.[0]?.address,
         subject: msg.envelope.subject,
         text
       });
-      if (!includeSeen) await client.messageFlagsAdd(msg.uid, ["\\Seen"], { uid: true });
-      logger.info(booking ? "Booking email parsed" : "Email ignored by booking parser", {
+
+      if (result.status === "Parsed" || result.status === "Duplicate") {
+        await client.messageFlagsAdd(msg.uid, ["\\Seen"], { uid: true });
+      }
+
+      logger.info(`Email scan result: ${result.status}`, {
         subject: msg.envelope.subject,
-        messageId: msg.envelope.messageId || String(msg.uid)
+        messageId: msg.envelope.messageId || String(msg.uid),
+        bookingId: result.booking?.bookingId,
+        duplicateReason: result.duplicateReason
       });
     }
   } finally {
+    clearTimeout(timeout);
     if (lock) lock.release();
     if (!client.usable) return;
     await client.logout().catch((error) => {

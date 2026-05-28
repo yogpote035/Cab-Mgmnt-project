@@ -1,11 +1,11 @@
-import { CreditCard, Download, Eye, FileDown, Mail, RefreshCcw } from "lucide-react";
+import { CreditCard, Download, Eye, FileDown, Mail } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { z } from "zod";
 import { DataTable } from "../components/tables/DataTable";
 import { Modal } from "../components/common/Modal";
 import { EntityForm } from "../components/forms/EntityForm";
-import { invoiceActions, recordPayment, regenerateInvoice, sendInvoice } from "../redux/slices/invoiceSlice";
+import { invoiceActions, recordPayment, sendInvoice } from "../redux/slices/invoiceSlice";
 import { downloadFile } from "../utils/downloadFile";
 
 export function InvoicesPage() {
@@ -13,13 +13,24 @@ export function InvoicesPage() {
   const [previewInvoice, setPreviewInvoice] = useState(null);
   const [sendTarget, setSendTarget] = useState(null);
   const [paymentTarget, setPaymentTarget] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("");
   const invoices = useSelector((s) => s.invoices);
-  useEffect(() => { dispatch(invoiceActions.fetchAll()); }, [dispatch]);
+  useEffect(() => { dispatch(invoiceActions.fetchAll(statusFilter ? { status: statusFilter } : {})); }, [dispatch, statusFilter]);
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold">Invoices</h1><p className="text-sm text-slate-500">Generate, regenerate, export PDF, email, and track payments.</p></div>
-        <button className="btn-secondary" onClick={() => downloadFile("/reports/invoices/export.xlsx", "invoices.xlsx")}><Download className="h-4 w-4" />Excel</button>
+        <div><h1 className="text-2xl font-bold">Invoices</h1><p className="text-sm text-slate-500">Preview, export PDF, email, and track payments.</p></div>
+        <div className="flex gap-2">
+          <select className="input w-44" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="">All Status</option>
+            <option value="Draft">Draft</option>
+            <option value="Sent">Sent</option>
+            <option value="Partial">Partial</option>
+            <option value="Paid">Paid</option>
+            <option value="Overdue">Overdue</option>
+          </select>
+          <button className="btn-secondary" onClick={() => downloadFile("/reports/invoices/export.xlsx", "invoices.xlsx")}><Download className="h-4 w-4" />Excel</button>
+        </div>
       </div>
       <div className="panel p-4">
         <DataTable
@@ -38,7 +49,6 @@ export function InvoicesPage() {
               <button className="btn-secondary p-2" title="Preview invoice" onClick={() => setPreviewInvoice(row)}><Eye className="h-4 w-4" /></button>
               <button className="btn-secondary p-2" title="Send invoice to client" onClick={() => setSendTarget(row)}><Mail className="h-4 w-4" /></button>
               <button className="btn-secondary p-2" title="Record payment" disabled={Number(row.balanceAmount || 0) <= 0} onClick={() => setPaymentTarget(row)}><CreditCard className="h-4 w-4" /></button>
-              <button className="btn-secondary p-2" title="Regenerate invoice after trip edit" onClick={async () => { await dispatch(regenerateInvoice(row._id)); await dispatch(invoiceActions.fetchAll()); }}><RefreshCcw className="h-4 w-4" /></button>
               <button className="btn-secondary p-2" title="Download PDF" onClick={() => downloadFile(`/invoices/${row._id}/pdf`, `${row.invoiceNumber}.pdf`)}><FileDown className="h-4 w-4" /></button>
             </div>
           )}

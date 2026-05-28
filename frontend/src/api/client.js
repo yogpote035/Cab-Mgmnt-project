@@ -25,6 +25,10 @@ api.interceptors.request.use((config) => {
   startLoading();
   const token = localStorage.getItem("accessToken");
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (config.method?.toLowerCase() === "get") {
+    config.headers["Cache-Control"] = "no-cache";
+    config.params = { ...(config.params || {}), _ts: Date.now() };
+  }
   return config;
 }, (error) => {
   stopLoading();
