@@ -7,7 +7,7 @@ let isPolling = false;
 
 export function startEmailPolling() {
   if (!env.enableEmailPolling || !env.imap.host) return;
-  setInterval(runPollSafely, 5 * 60 * 1000);
+  setInterval(runPollSafely, 60 * 1000);
   runPollSafely();
 }
 
