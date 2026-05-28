@@ -65,7 +65,7 @@ export function Sidebar({ open, onClose }) {
           <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Management & Billing</div>
         </div>
       </div>
-      <nav className="flex-1 space-y-5 overflow-y-auto p-3">
+      <nav className="scrollbar-hidden flex-1 space-y-5 overflow-y-auto p-3">
         {sections.map((section) => (
           <div key={section.label}>
             {section.label !== "Main" && (
