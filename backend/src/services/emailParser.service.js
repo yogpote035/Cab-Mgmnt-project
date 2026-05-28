@@ -50,15 +50,14 @@ export async function createBookingFromEmail({ messageId, from, subject, text })
     return { booking: null, status: "Ignored" };
   }
 
-  const duplicateFilter = parsed.cabRequestNumber
-    ? { cabRequestNumber: parsed.cabRequestNumber }
-    : { emailMessageId: messageId };
+  if (!parsed.cabRequestNumber) {
+    await upsertEmailLog({ messageId, direction: "Incoming", from, subject, status: "Ignored", error: "Cab Request No is required for deduplication" });
+    return { booking: null, status: "Ignored" };
+  }
 
-  const existing = await Booking.findOne(duplicateFilter);
+  const existing = await Booking.findOne({ cabRequestNumber: parsed.cabRequestNumber });
   if (existing) {
-    const duplicateReason = parsed.cabRequestNumber
-      ? `Cab Request No already exists: ${parsed.cabRequestNumber}`
-      : "Email message already processed";
+    const duplicateReason = `Cab Request No already exists: ${parsed.cabRequestNumber}`;
     await upsertEmailLog({ messageId, direction: "Incoming", from, subject, status: "Duplicate", error: duplicateReason, relatedBooking: existing._id });
     return { booking: existing, status: "Duplicate", duplicateReason };
   }

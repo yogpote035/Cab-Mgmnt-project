@@ -3,132 +3,97 @@ import { env } from "../config/env.js";
 import { createBookingFromEmail } from "../services/emailParser.service.js";
 import { logger } from "../utils/logger.js";
 
-let isPolling = false;
-let activeSession = null;
-let activeClient = null;
-const AUTO_SCAN_DAYS_BACK = 3;
-const FAST_SCAN_INTERVAL_MS = 15 * 1000;
-const BACKFILL_SCAN_INTERVAL_MS = 5 * 60 * 1000;
-const MAX_MESSAGES_PER_POLL = 10;
-const POLL_TIMEOUT_MS = 20 * 1000;
+const RECONNECT_DELAY_MS = 5 * 1000;
+const MAX_MESSAGES_PER_BATCH = 25;
 
-export function startEmailPolling() {
+export function startInstantEmailScanner() {
   if (!env.enableEmailPolling || !env.imap.host) return;
-
-  setInterval(() => runPollSafely({ includeSeen: false, daysBack: AUTO_SCAN_DAYS_BACK }), FAST_SCAN_INTERVAL_MS);
-  setInterval(() => runPollSafely({ includeSeen: true, daysBack: AUTO_SCAN_DAYS_BACK }), BACKFILL_SCAN_INTERVAL_MS);
-  runPollSafely({ includeSeen: false, daysBack: AUTO_SCAN_DAYS_BACK });
+  void runInstantScannerLoop();
 }
 
 export async function scanInboxNow() {
-  await runPollSafely({ includeSeen: true, daysBack: 30 });
-}
-
-async function runPollSafely(options = {}) {
-  if (isPolling) {
-    logger.info("Email polling skipped because a previous poll is still running");
-    return;
-  }
-
-  isPolling = true;
-  const session = { id: Date.now(), expired: false };
-  activeSession = session;
+  const client = createImapClient();
 
   try {
-    await Promise.race([
-      pollInbox(options, session),
-      expirePollingSession(session)
-    ]);
+    await client.connect();
+    const result = await processUnreadEmails(client);
+    await client.logout();
+    return result;
   } catch (error) {
-    if (error.code === "EPOLL_TIMEOUT") {
-      logger.warn("Email polling session expired; next scheduler tick will start a fresh session", { timeoutMs: POLL_TIMEOUT_MS });
-    } else {
-      logger.warn("Email polling failed", { message: error.message, code: error.code });
-    }
-  } finally {
-    if (activeSession?.id === session.id) {
-      isPolling = false;
-      activeSession = null;
-      activeClient = null;
+    client.close();
+    throw error;
+  }
+}
+
+async function runInstantScannerLoop() {
+  while (true) {
+    const client = createImapClient();
+
+    client.on("error", (error) => {
+      logger.warn("IMAP connection error", { message: error.message, code: error.code });
+    });
+
+    try {
+      await client.connect();
+      logger.info("Instant email scanner connected; waiting for new inbox mail");
+
+      while (client.usable) {
+        await processUnreadEmails(client);
+        await client.idle();
+      }
+    } catch (error) {
+      logger.warn("Instant email scanner disconnected", { message: error.message, code: error.code });
+    } finally {
+      await logoutSafely(client);
+      logger.info("Restarting instant email scanner after reconnect delay", { delayMs: RECONNECT_DELAY_MS });
+      await delay(RECONNECT_DELAY_MS);
     }
   }
 }
 
-function expirePollingSession(session) {
-  return new Promise((_, reject) => {
-    setTimeout(() => {
-      session.expired = true;
-      if (activeSession?.id === session.id) {
-        logger.warn("Email polling session timed out; closing IMAP connection");
-        try {
-          activeClient?.close();
-        } catch (error) {
-          logger.warn("IMAP close failed", { message: error.message, code: error.code });
-        }
-      }
-
-      const error = new Error("Email polling session timed out");
-      error.code = "EPOLL_TIMEOUT";
-      reject(error);
-    }, POLL_TIMEOUT_MS);
-  });
-}
-
-async function pollInbox({ includeSeen = false, daysBack = 7 } = {}, session) {
-  const client = new ImapFlow({
+function createImapClient() {
+  return new ImapFlow({
     host: env.imap.host,
     port: env.imap.port,
     secure: true,
     auth: { user: env.imap.user, pass: env.imap.pass },
     logger: false,
-    socketTimeout: 12000,
-    connectionTimeout: 10000,
-    greetingTimeout: 10000
+    socketTimeout: 2 * 60 * 1000,
+    connectionTimeout: 30000,
+    greetingTimeout: 30000
   });
-  activeClient = client;
+}
 
-  client.on("error", (error) => {
-    logger.warn("IMAP connection error", { message: error.message, code: error.code });
-  });
-
+async function processUnreadEmails(client) {
   let lock;
+  let parsed = 0;
+  let duplicates = 0;
+  let ignored = 0;
 
   try {
-    if (session.expired) return;
-    await client.connect();
-    if (session.expired) return;
     lock = await client.getMailboxLock("INBOX");
-    if (session.expired) return;
+    const foundUids = await client.search({ seen: false }, { uid: true });
+    const uids = [...new Set(foundUids || [])].sort((a, b) => a - b).slice(0, MAX_MESSAGES_PER_BATCH);
 
-    const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
-    const searchQuery = includeSeen
-      ? { since }
-      : { seen: false };
-    const foundUids = await client.search(searchQuery, { uid: true });
-    const uids = [...new Set(foundUids || [])].sort((a, b) => a - b).slice(-MAX_MESSAGES_PER_POLL);
+    if (!uids.length) return { parsed, duplicates, ignored, processed: 0 };
 
-    logger.info("Email polling started", {
-      includeSeen,
-      daysBack,
-      found: foundUids?.length || 0,
-      processing: uids.length
-    });
+    logger.info("Unread email scan started", { found: foundUids.length, processing: uids.length });
 
-    if (!uids.length) return;
-
-    for await (const msg of client.fetch(uids, { envelope: true, source: true, flags: true, uid: true }, { uid: true })) {
-      if (session.expired) break;
-      const text = msg.source.toString();
+    for await (const msg of client.fetch(uids, { envelope: true, source: true, uid: true }, { uid: true })) {
       const result = await createBookingFromEmail({
         messageId: msg.envelope.messageId || String(msg.uid),
         from: msg.envelope.from?.[0]?.address,
         subject: msg.envelope.subject,
-        text
+        text: msg.source.toString()
       });
 
       if (result.status === "Parsed" || result.status === "Duplicate") {
         await client.messageFlagsAdd(msg.uid, ["\\Seen"], { uid: true });
       }
+
+      if (result.status === "Parsed") parsed += 1;
+      if (result.status === "Duplicate") duplicates += 1;
+      if (result.status === "Ignored") ignored += 1;
 
       logger.info(`Email scan result: ${result.status}`, {
         subject: msg.envelope.subject,
@@ -137,6 +102,8 @@ async function pollInbox({ includeSeen = false, daysBack = 7 } = {}, session) {
         duplicateReason: result.duplicateReason
       });
     }
+
+    return { parsed, duplicates, ignored, processed: uids.length };
   } finally {
     if (lock) {
       try {
@@ -145,9 +112,17 @@ async function pollInbox({ includeSeen = false, daysBack = 7 } = {}, session) {
         logger.warn("IMAP lock release failed", { message: error.message, code: error.code });
       }
     }
-    if (!client.usable) return;
-    await client.logout().catch((error) => {
-      logger.warn("IMAP logout failed", { message: error.message, code: error.code });
-    });
   }
+}
+
+async function logoutSafely(client) {
+  if (!client.usable) return;
+  await client.logout().catch((error) => {
+    logger.warn("IMAP logout failed", { message: error.message, code: error.code });
+    client.close();
+  });
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
