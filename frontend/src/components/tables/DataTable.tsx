@@ -15,7 +15,7 @@ export function DataTable({ columns, rows = [], loading, actions }: {
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
       <div className="max-h-[65vh] overflow-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+        <table className="min-w-[720px] divide-y divide-slate-200 text-sm dark:divide-slate-800 lg:min-w-full">
           <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900">
             <tr>
               {columns.map((column) => (
@@ -30,7 +30,7 @@ export function DataTable({ columns, rows = [], loading, actions }: {
             {rows.map((row) => (
               <tr key={row._id} className="hover:bg-slate-50 dark:hover:bg-slate-900">
                 {columns.map((column) => <td key={column.key} className="whitespace-nowrap px-4 py-3 text-slate-700 dark:text-slate-200">{column.render ? column.render(row) : row[column.key]}</td>)}
-                {actions && <td className="px-4 py-3 text-right">{actions(row)}</td>}
+                {actions && <td className="px-4 py-3 text-right align-middle">{actions(row)}</td>}
               </tr>
             ))}
           </tbody>

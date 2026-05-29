@@ -68,7 +68,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:px-6">
+    <header className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center gap-2 border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-nowrap sm:gap-3 sm:px-4 lg:px-6">
       <button className="btn-secondary p-2 md:hidden" onClick={onMenu} aria-label="Open menu">
         <Menu className="h-4 w-4" />
       </button>
@@ -78,12 +78,12 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         <h1 className="truncate text-lg font-semibold text-slate-950 dark:text-white">Cab Management</h1>
       </div> */}
 
-      <div className="relative ml-0 max-w-2xl flex-1 md:ml-4">
+      <div className="relative order-3 w-full sm:order-none sm:ml-2 sm:max-w-2xl sm:flex-1 lg:ml-4">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input className="input h-10 rounded-lg bg-slate-50 pl-9 dark:bg-slate-900" placeholder="Search bookings, invoices, drivers..." />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         <div className="relative">
           <button className="btn-secondary relative p-2" aria-label="Notifications" onClick={() => setOpenNotifications((value) => !value)}>
             <Bell className="h-4 w-4" />
@@ -142,11 +142,11 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         </button>
       </div>
 
-      <div className="hidden items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 sm:flex dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-600 text-sm font-semibold text-white">
+      <div className="ml-1 flex shrink-0 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-2 py-1 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:min-w-[210px] sm:px-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-sm font-semibold text-white">
           {(user?.name || "A").slice(0, 1)}
         </div>
-        <div className="min-w-0 text-sm">
+        <div className="hidden min-w-0 text-sm sm:block">
           <p className="truncate font-semibold text-slate-900 dark:text-white">{user?.name || "Admin"}</p>
           <p className="truncate text-xs text-slate-500">{user?.role || "Administrator"}</p>
         </div>
