@@ -2,6 +2,7 @@ import { Columns3, Download, FileBarChart, Printer, RefreshCcw, RotateCcw } from
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { chartColors, renderPieLabelLine, renderPiePercentageLabel } from "../components/charts/PiePercentageLabel";
 import { EmptyState } from "../components/common/EmptyState";
 import { StatCard } from "../components/common/StatCard";
 import { DataTable } from "../components/tables/DataTable";
@@ -27,8 +28,8 @@ const reportLabels: Record<string, string> = {
   custom: "Custom Reports"
 };
 
-const colors = ["#2388d9", "#10b981", "#f59e0b", "#ef4444", "#64748b"];
 const tooltipStyle = { borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 12px 30px rgba(15, 23, 42, 0.12)" };
+const tooltipCursor = { fill: "rgba(148, 163, 184, 0.14)", stroke: "transparent" };
 
 const recordLabels: Record<string, string> = {
   "daily-trips": "Total Trips",
@@ -133,7 +134,7 @@ export function ReportsPage() {
           <p className="mb-4 text-xs text-slate-500">Filtered report movement</p>
           {trendData.length ? (
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={trendData}><CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} /><XAxis dataKey="name" tickLine={false} axisLine={false} /><YAxis tickLine={false} axisLine={false} /><Tooltip contentStyle={tooltipStyle} /><Bar dataKey="value" fill="#2388d9" radius={[6, 6, 0, 0]} maxBarSize={44} /></BarChart>
+              <BarChart data={trendData}><CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} /><XAxis dataKey="name" tickLine={false} axisLine={false} /><YAxis tickLine={false} axisLine={false} /><Tooltip contentStyle={tooltipStyle} cursor={tooltipCursor} /><Bar dataKey="value" fill="#2388d9" radius={[6, 6, 0, 0]} maxBarSize={44} /></BarChart>
             </ResponsiveContainer>
           ) : <EmptyState />}
         </section>
@@ -142,7 +143,12 @@ export function ReportsPage() {
           <p className="mb-4 text-xs text-slate-500">Current filtered distribution</p>
           {statusData.length ? (
             <ResponsiveContainer width="100%" height={250}>
-              <PieChart><Pie data={statusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={82} paddingAngle={3}>{statusData.map((_: unknown, index: number) => <Cell key={index} fill={colors[index % colors.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
+              <PieChart margin={{ top: 18, right: 34, bottom: 18, left: 34 }}>
+                <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={76} paddingAngle={5} label={renderPiePercentageLabel} labelLine={renderPieLabelLine}>
+                  {statusData.map((_: unknown, index: number) => <Cell key={index} fill={chartColors[index % chartColors.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={tooltipStyle} cursor={false} />
+              </PieChart>
             </ResponsiveContainer>
           ) : <EmptyState />}
         </section>

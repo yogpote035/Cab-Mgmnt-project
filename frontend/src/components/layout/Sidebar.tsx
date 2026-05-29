@@ -42,7 +42,7 @@ const sections = [
 export function Sidebar({ open, onClose }: { open: boolean; onClose?: () => void }) {
   const dispatch = useAppDispatch();
   return (
-    <aside className={`${open ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-200 bg-white/95 shadow-xl backdrop-blur transition md:static md:translate-x-0 dark:border-slate-800 dark:bg-slate-950/95`}>
+    <aside className={`${open ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-40 flex w-62 flex-col border-r border-slate-200 bg-white/95 shadow-xl backdrop-blur transition md:static md:translate-x-0 dark:border-slate-800 dark:bg-slate-950/95`}>
       <div className="flex h-16 items-center gap-3 border-b border-slate-200/80 px-5 dark:border-slate-800">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-cyan-500 text-white shadow-lg shadow-brand-500/20">
           <Car className="h-5 w-5" />
